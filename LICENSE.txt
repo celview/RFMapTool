@@ -1,0 +1,9 @@
+Copyright © 2025 JS
+
+RFMapTool is free to use, modify, and redistribute for personal, educational, or internal business use.
+
+Most of the application code is readable and may be customized as needed.
+However, a small portion is intentionally obfuscated for copyright and attribution protection.
+This part is not intended to be modified or removed.
+
+No warranty is provided. The tool is shared as-is, with no guarantee of future updates or support.
