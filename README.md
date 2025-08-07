@@ -21,6 +21,16 @@ It helps visualize outdoor and indoor cells using CSV or Excel data with multi-l
 - No installation, login, or license required
 - Internet connection required for basemap tiles and library loading
 
+## 📁 Sample Data
+
+Sample files for testing and demonstration are available in the `sample-data/` folder:
+
+- `sample_sitecell.csv`
+- `sample_neighbor.csv`
+- `sample_mergedata.csv`
+
+Use the Import button in the tool to try them out.
+
 ## 📄 License
 
 RFMapTool is free to use, modify, and redistribute for internal, educational, or personal use.  
