@@ -44,3 +44,14 @@ If RFMapTool helped your work or saved you time, you’re welcome to support the
 ## 📧 Contact
 
 📬 celview3g@gmail.com
+
+## ⚠️ Disclaimer
+
+RFMapTool is shared freely in the hope that it helps other engineers work more efficiently.
+
+That said, it’s provided *as-is*, with no guarantees or warranties.
+
+While I’ve done my best to make it useful, I can’t take responsibility for any issues, errors, or losses that might occur from using it — especially in professional, commercial, or critical environments.
+
+Please double-check all results before relying on them in your work.  
+Use at your own discretion.
