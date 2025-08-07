@@ -15,6 +15,11 @@ It helps visualize outdoor and indoor cells using CSV or Excel data with multi-l
 - Choose from multiple basemap layers (OSM, Carto, ESRI, Mapbox)
 - Most of the code is modifiable by users
 
+## 🎥 Highlights Video
+
+Watch RFMapTool Highlights on YouTube:  
+👉 [https://youtu.be/maufGqLe0PU](https://youtu.be/maufGqLe0PU)
+
 ## 💻 Usage
 
 - Open `index.html` in any modern browser
