@@ -1,0 +1,693 @@
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden; /* Removes scroll bar */
+  display: flex;
+  flex-direction: column;}
+#map {
+  flex: 1 1 auto;  /* Take up remaining vertical space */
+  width: 100%;
+  background-color: black;}
+body { font-family: sans-serif; margin: 0; }
+.controls, .bottom-controls {
+  padding: 1rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+}
+.bottom-controls {
+  width: 100%;
+  background: transparent;
+  z-index: 1000;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+.bottom-controls-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: #f4f4f4;
+  z-index: 1000;
+  transition: transform 0.3s ease, height 0.3s ease, padding 0.3s ease;
+  transform: translateY(0);
+  box-shadow: 0 -2px 6px rgba(0,0,0,0.15);
+  padding-bottom: 20px;  /* 👈 Adds breathing room above the Windows bar */
+  height: auto;
+max-height: 40vh;  /* limit to 40% of viewport height */
+overflow-y: auto;  /* scroll if content overflows */
+  box-sizing: border-box;
+} 
+/* When collapsed, hide by translating and setting height and padding to 0 */
+.bottom-controls-container.collapsed {
+  transform: translateY(100%);
+  height: 0;
+  padding: 0;
+}
+/* Default appearance BEFORE click */
+.toggle-button {
+  padding: 0.5rem;
+  background-color: #aaabab; /* your desired default color */
+  color: black;
+  font-weight: normal;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
+/* Active appearance AFTER click */
+.toggle-button.active-toggle {
+  background-color: #1271ed;
+  color: white;
+  font-weight: bold;
+  border: 1px solid #333;
+}
+/* Leaflet popup styling for smaller font and scrollable content */
+.leaflet-popup-content {
+  font-size: 12px;        /* smaller text */
+  max-height: 400px;      /* limit popup height */
+  overflow-y: auto;       /* enable scroll when long */
+}
+.leaflet-popup-content-wrapper {
+  max-width: 250px;       /* optional: limit popup width */
+}
+.coord-display {
+  background: white;
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+  box-shadow: 0 0 4px rgba(0,0,0,0.3);
+
+  z-index: 1000;   /* ensure it shows above map */
+}
+
+.route-drawing-active {
+  outline: 3px solid red;
+  outline-offset: -3px;
+}
+.leaflet-control-layers {
+  transition: all 0.2s ease-in-out;
+  margin-top: 50px; /* 👈 Pushes the layers control down */
+}
+/* Offset Leaflet's top-left controls down */
+.leaflet-top.leaflet-left {
+  top: 50px !important;  /* Adjust this to match your toolbar height */
+}
+.leaflet-control-layers:hover {
+  width: auto !important;
+  height: auto !important;
+}
+.leaflet-control-layers-expanded {
+  display: block !important;
+}
+.legend-container {
+  position: absolute;
+  top: 35px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid #bbb;
+  border-radius: 6px;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  min-width: 180px;
+  max-width: 240px;
+  overflow: hidden;
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 12px;
+  color: #333;
+}
+
+.legend-toggle {
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 10px;
+  background: #f2f2f2;
+  border-bottom: 1px solid #ccc;
+  user-select: none;
+}
+
+.legend-content {
+  padding: 8px 10px;
+}
+
+.legend-content strong {
+  font-size: 12px;
+  color: #222;
+}
+
+.legend-content ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 6px 0 0 0;
+}
+
+.legend-content ul li {
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  font-size: 11.5px;
+}
+
+.legend-content.collapsed {
+  display: none;
+}
+
+#thematicLegend {
+  margin-top: 1rem;
+  display: none;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+#thematicLegend strong {
+  font-size: 12px;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.thematic-bar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+#thematicGradientBar {
+  height: 10px;
+  width: 100%;
+  background: linear-gradient(to right, blue, red);
+  border-radius: 4px;
+}
+
+.thematic-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  padding: 0 2px;
+}
+
+#thematicLegend div {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-top: 4px;
+}
+.accordion-toggle {
+  background: #f9f9f9;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  font-weight: bold;
+  margin-top: 5px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.accordion-toggle:hover {
+  background: #e0e0e0;
+}
+.accordion-content {
+  background: #fff;
+  padding: 6px 10px;
+  border-left: 3px solid #007bff;
+  margin-bottom: 5px;
+  font-size: 13px;
+}
+#colorPickerWrapper input[type="color"] {
+  margin-top: 2px;
+  height: 24px;
+  border: none;
+  cursor: pointer;
+}
+input[type="range"] {
+    appearance: none;
+    -webkit-appearance: none; /* Remove default styling in WebKit (Chrome, Edge) */
+    width: 100%;
+    height: 6px;
+    background: #2196F3; /* Blue track */
+    border-radius: 5px;
+    outline: none;
+}
+
+#NeighborControls input[type="color"] {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+}
+/* WebKit browsers (Chrome, Edge) */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 16px;
+  width: 16px;
+  background: white;
+  border: 2px solid #2196F3;
+  border-radius: 50%;
+  cursor: pointer;
+  margin-top: -5px; /* Align thumb with track */
+}
+/* Firefox */
+input[type="range"]::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  background: white;
+  border: 2px solid #2196F3;
+  border-radius: 50%;
+  cursor: pointer;
+}
+/* Track in Firefox */
+input[type="range"]::-moz-range-track {
+  background: #2196F3;
+  height: 6px;
+  border-radius: 5px;
+}
+/* IE (if needed) */
+input[type="range"]::-ms-thumb {
+  height: 16px;
+  width: 16px;
+  background: white;
+  border: 2px solid #2196F3;
+  border-radius: 50%;
+  cursor: pointer;
+}
+input[type="range"]::-ms-track {
+  background: transparent;
+  border-color: transparent;
+  color: transparent;
+  height: 6px;
+}
+.flex-slider {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 250px;
+  margin-right: 1rem;
+}
+.flex-slider input[type="range"] {
+  flex: 1;
+  min-width: 100px;
+}
+.flex-slider span {
+  min-width: 30px;
+  text-align: right;
+}
+#copyright {
+  position: fixed;
+  top: 10px; /* previously 8px */
+  right: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 99999;
+  pointer-events: none;
+  user-select: none;
+  box-shadow: 0 0 4px rgba(0,0,0,0.2);
+}
+
+/* Universal button style */
+.toggle-button {
+  padding: 5px 10px;
+  background-color: #007acc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+.toggle-button:hover {
+  background-color: #005fa3;
+}
+
+#topToolbar {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  padding: 0.5rem 1rem;
+  box-sizing: border-box;
+  background: rgba(249, 249, 249, 0.9); /* 👈 slightly transparent */
+  border-bottom: 1px solid #ccc;
+  font-size: 13px;
+  scrollbar-width: thin;
+  opacity: 0.92; /* 👈 applies to whole bar including text/buttons */
+}
+
+#topToolbar input[type="text"],
+#topToolbar select {
+  padding: 4px 6px;
+  font-size: 13px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+#topToolbar label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+#topToolbar input[type="checkbox"] {
+  transform: scale(1.1);
+}
+
+.toggle-button.hide-mode {
+  background-color: #4f08de; /* 🔴 Bright red when in Hide mode */
+  color: white;
+  font-weight: bold;
+}
+
+#clearSelectedPolygonsBtn:hover {
+  background-color: #8b2323 !important;
+}
+
+.toggle-button:active {
+  transform: scale(0.96);      /* Slightly shrink the button */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2) inset;  /* Pressed-in shadow */
+}
+
+.tooltip-icon {
+  display: inline-block;
+  position: relative;
+  width: 16px;
+  height: 16px;
+  background: #007acc;
+  color: white;
+  font-size: 12px;
+  text-align: center;
+  line-height: 16px;
+  border-radius: 50%;
+  cursor: help;
+  margin-left: 2px;
+}
+
+.tooltip-icon .tooltip-text {
+  display: none;
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(60, 60, 60, 0.95);
+  color: white;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  max-width: 600px;           /* ← Increase this to make it wider */
+  min-width: 220px;           /* ← Optional: make tooltip less squashed */
+  white-space: normal;        /* ← Allow wrapping instead of forcing pre-line */
+  word-wrap: break-word;      /* ← Break long words if necessary */
+  z-index: 9999;
+}
+
+.tooltip-icon:hover .tooltip-text {
+  display: block;
+}
+
+#floatingToolbarWrapper {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 1001;
+  max-width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+#topToolbar {
+  position: relative; /* stay inside wrapper */
+  z-index: 2;
+}
+
+.floating-control {
+   display: none;
+  position: absolute;
+  top: 50px;
+  left: 10%;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 1001;
+  display: inline-block;
+  white-space: normal;
+  max-width: 90%; /* optional */
+  font-size: 14px;
+}
+
+/*-------------------------------*/
+
+#floatingToolbarWrapper {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 1001;
+  display: flex;
+  flex-direction: column; /* 👈 stack hamburger/toolbar row + tool panels */
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+#toolbarRow {
+  display: flex;
+  flex-direction: row; /* 👈 hamburger and main toolbar side-by-side */
+  align-items: center;
+  gap: 0.75rem;
+}
+
+#toolbarToggleBtn {
+  padding: 6px 10px;
+  font-size: 18px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(36, 34, 34, 0.6);
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+#topToolbar {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: rgba(249, 249, 249, 0.9);
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.collapsible-toolbar {
+  display: none; /* shown when active */
+  margin-top: 0.5rem;
+  padding: 1rem;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#topToolbar.collapsed {
+  display: none;
+}
+
+/*=====================geojson controls==========================*/
+#geotoolbar {
+      position: absolute; top: 105px; left: 2px;
+      background: white; border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.15);
+      padding: 10px 10px 6px 10px; /* reduce bottom padding */
+      z-index: 1000; width: 240px;
+    }
+    .geolayer-block {
+    font-size: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+  align-items: center;
+    }
+
+    .geolayer-block h4 {
+      grid-column: span 1;
+      font-size: 14px;
+      margin: 0 0 6px;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 4px;
+      color: #333;
+    }
+
+    .geolayer-wrapper {
+   border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 12px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  transition: box-shadow 0.3s ease;
+}
+
+    .geolayer-block label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin: 0;
+    }
+
+    .geolayer-block input[type="color"],
+    .geolayer-block input[type="number"],
+    .geolayer-block select {
+      width: 100%;
+      padding: 2px;
+      font-size: 12px;
+    }
+
+    .geolayer-block input[type="checkbox"],
+    .geolayer-block input[type="radio"] {
+      margin: 0;
+    }
+
+    .geolayer-block button {
+      grid-column: span 2;
+      padding: 6px;
+      font-size: 13px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .geolayer-block button:hover {
+      background: #0056b3;
+    }
+
+    #geotogglePanel {
+  padding: 6px 10px;
+  font-size: 18px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(0, 123, 255, 0.7);  /* 0.2 = 20% opacity */
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  position: absolute;
+  top: 70px;
+  left: 0px;
+  z-index: 1001;
+  width: 36px;
+  height: 36px;
+  line-height: 24px;
+  text-align: center;
+    }
+
+    .leaflet-tooltip.geojson-label {
+  pointer-events: none;
+}
+
+  #geojsonInput {
+    display: none;
+  }
+
+  .file-upload-label {
+    display: inline-block;
+    padding: 6px 12px;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+     font-size: 12px; /* or any size you prefer */
+  }
+
+/*============routing machine ======================*/
+
+#map.adding-points,
+    #map.adding-points .leaflet-container {
+      cursor: default !important;
+    }
+    .marker-label {
+      background-color: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      font-size: 11px;
+      padding: 2px 5px;
+      border-radius: 12px;
+      border: 1px solid #fff;
+      box-shadow: 0 0 3px rgba(0,0,0,0.5);
+      opacity: 0.85;
+    }
+   .leaflet-tooltip.marker-label {
+     white-space: nowrap;
+    }
+   #controls button {
+    display: block;
+    margin-bottom: 5px;
+    width: 180px;
+   }
+/*=====================routing machine end ======================*/
+
+.custom-file-upload {
+  display: inline-block;
+  padding: 6px 12px;
+  cursor: pointer;
+  background-color: #e0e0e0;
+  border: 1px solid #999;
+  border-radius: 4px;
+}
+
+#searchSuggestions div:hover {
+  background: #f0f0f0;
+}
+
+#currentLayerKeyDisplay {
+  color: #555;
+}
+
+#searchSuggestions {
+  position: absolute;
+  z-index: 9999;
+  background: rgba(255, 255, 255, 0.7); /* semi-transparent */
+  backdrop-filter: blur(4px); /* optional frosted glass */
+  -webkit-backdrop-filter: blur(4px);
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+/* Make each suggestion item transparent too */
+#searchSuggestions div {
+  background-color: transparent !important;
+}
+
+.leaflet-div-icon.leaflet-editing-icon {
+  width: 10px;
+  height: 10px;
+  background-color: white;
+  border: 2px solid red;
+  border-radius: 50%;
+  margin-left: -5px;
+  margin-top: -5px;
+  box-shadow: 0 0 2px black;
+}
+
+

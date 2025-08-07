@@ -1,0 +1,5221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<!--
+  © 2025 Jason See
+  This tool is powered by:
+  - Leaflet.js (MIT License): https://leafletjs.com
+  - OpenStreetMap tiles: https://www.openstreetmap.org/copyright
+  - chroma.js (BSD License): https://gka.github.io/chroma.js/
+  - PapaParse (MIT License): https://www.papaparse.com/
+  - leaflet-pip (MIT License): https://github.com/mapbox/leaflet-pip
+  Please retain this comment and credit the original author if redistributed or modified.
+-->
+<title>🗼 RFmapTool4LTE/NR Engineer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.css" />
+<link rel="stylesheet" href="style.css">
+
+<script src="https://unpkg.com/chroma-js@2.4.2/chroma.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js" defer></script>
+
+</head>
+
+<body>
+<div id="copyright">© 2025 JS</div>
+<div id="floatingToolbarWrapper">
+    <div id="toolbarRow">
+<button id="toolbarToggleBtn" title="Main Menu">☰</button>
+  <div id="topToolbar" class="collapsed">
+  <!-- Left side buttons -->
+  <button id="toggleThematicControls" class="toggle-button" data-label="Thematic">▼ Thematic</button>
+  <button id="toggleHighlightControls" class="toggle-button" data-label="Highlight">▼ Highlight</button>
+  <button id="toggleFilterControls" class="toggle-button" data-label="Filter">▼ Filter</button>
+  <button id="toggleDrawingControls" class="toggle-button" data-label="Select">▼ Select</button>
+  <button id="toggleRouteControls" class="toggle-button" data-label="Draw">▼ Draw</button>
+  <button id="toggleRmControls" class="toggle-button" data-label="Routing">▼ Routing</button>
+  <button id="toggleMergeControls" class="toggle-button" data-label="Merge">▼ Merge</button>
+  <button id="toggleNeighborControls" class="toggle-button" data-label="Neighbor">▼ Neighbor</button>
+  <!-- Search -->
+  <input type="text" id="searchInput" placeholder="Enter Site ID or Cell ID" style="min-width: 200px;" />
+  <button id="searchButton" class="toggle-button">Search</button>
+  <button id="clearSearchButton" class="toggle-button" style="display: none;">Clear</button>
+  
+  <!-- File input -->
+  <label for="fileInput" class="custom-file-upload">📁 Import</label>
+<input type="file" id="fileInput" accept=".csv,.xlsx" style="display: none;" />
+  <select id="sheetSelector" style="display: none;"></select>
+  <div id="csvStatus" style="font-size: 0.9em; color: #444;"></div>
+  <!-- ℹ️ Info button -->
+<button id="infoButton" title="About RFMapTool" style="font-size: 1em; border: none; background: none; cursor: pointer;">ℹ️</button>
+</div>
+</div>
+
+<!-- geojson Controls -->
+<div id="geotoolbar" style="display: none;">
+  <label for="geojsonInput" class="file-upload-label">Open GeoJSON</label>
+  <input type="file" id="geojsonInput" accept=".geojson" multiple />
+  <!-- Toggles -->
+  <label><input type="checkbox" id="toggleDots" checked /> Site</label>
+  <label><input type="checkbox" id="toggleCells" checked /> Cell</label>
+  <div id="layerControls"></div>
+</div>
+<button id="geotogglePanel" title="geojson layer">☰</button>
+
+<!-- Collapsible Thematic Controls -->
+<div id="thematicControls" class="floating-control" style="
+  display: none;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-size: 14px;
+">
+
+  <label style="font-weight: bold; color: rgb(3, 74, 179);">Thematic Column:
+    <select id="thematicColumnSelect" style="padding: 4px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px;">
+      <option value="">-- Select Column --</option>
+    </select>
+  </label>
+
+  <label style="font-weight: bold; color: rgb(3, 74, 179);">Min:
+    <input type="number" id="thematicMinInput" step="any" placeholder="Auto" style="width: 80px; padding: 4px; border-radius: 4px; border: 1px solid #ccc;">
+  </label>
+
+  <label style="font-weight: bold; color: rgb(3, 74, 179);">Max:
+    <input type="number" id="thematicMaxInput" step="any" placeholder="Auto" style="width: 80px; padding: 4px; border-radius: 4px; border: 1px solid #ccc;">
+  </label>
+
+  <label style="font-weight: bold; color: rgb(3, 74, 179);">Color Scale:
+    <select id="thematicColorScale" style="padding: 4px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px;">
+      <option value="blue-red">Blue → Red</option>
+      <option value="green-yellow-red">Green→Yellow→Red</option>
+      <option value="blue-green-yellow-red">Blue→Green→Yellow→Red</option>
+      <option value="purple-orange">Purple→Orange</option>
+      <option value="viridis">Viridis</option>
+      <option value="turbo">Turbo</option>
+    </select>
+  </label>
+
+  <label style="font-weight: bold; color: rgb(3, 74, 179);">Mode:
+    <select id="thematicMode" style="padding: 4px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px;">
+      <option value="categorical">Individual</option>
+      <option value="continuous">Continuous</option>
+      <option value="range">Range</option>
+    </select>
+  </label>
+
+  <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+    <label style="font-weight: bold;">Classification Ranges:</label>
+    <div id="classRangeList" style="display: flex; flex-direction: column; gap: 0.25rem;"></div>
+    <button id="addRangeButton" type="button" style="padding: 5px 10px; border: none; background-color: #007acc; color: white; border-radius: 4px; cursor: pointer;">
+      + Add Range
+    </button>
+  </div>
+
+  <button id="applyThematic" class="toggle-button" style="padding: 5px 10px; border: none; background-color: #007acc; color: white; border-radius: 4px; cursor: pointer;">
+    Apply
+  </button>
+
+  <button id="clearThematic" class="toggle-button" style="padding: 5px 10px; border: none; background-color: #888; color: white; border-radius: 4px; cursor: pointer;">
+    Clear
+  </button>
+<span class="tooltip-icon" data-tooltip-id="Thematic">
+  i
+  <span class="tooltip-text"></span>
+</span>
+</div>
+
+<!-- Collapsible Highlight Controls -->
+<div id="highlightControls" class="floating-control" style="
+  display: none;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-size: 14px;
+">
+
+  <label style="font-weight: bold; color: rgb(3, 74, 179);">Column:
+    <select id="codeTypeSelect" style="padding: 4px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px;">
+      <option value="">-- Select Column --</option>
+    </select>
+  </label>
+
+  <label style="font-weight: bold; color: rgb(3, 74, 179);">Value:
+    <input id="codeValueInput" type="text" placeholder="Enter code value" style="padding: 4px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px;">
+  </label>
+
+  <label style="font-weight: bold; color: rgb(3, 74, 179);">Color:
+    <input id="highlightColor" type="color" value="#ff0000" style="width: 50px;">
+  </label>
+
+  <button id="highlightButton" style="padding: 5px 10px; border: none; background-color: #007acc; color: white; border-radius: 4px; cursor: pointer;">
+    Highlight
+  </button>
+
+  <button id="clearHighlightButton" style="padding: 5px 10px; border: none; background-color: #888; color: white; border-radius: 4px; cursor: pointer;">
+    Clear
+  </button>
+
+  <div style="display: flex; flex-direction: row; gap: 2rem; margin-top: 1rem;">
+  
+  <!-- Highlighted Cells Column -->
+  <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+    <label style="font-weight: bold; color: rgb(3, 74, 179);">Highlighted Cells:</label>
+    <label>
+      <span style="color: rgb(3, 74, 179);">Line Opacity:</span>
+      <input id="highlightedLineOpacity" type="range" min="0" max="1" step="0.05" value="1" style="width: 100px;">
+    </label>
+    <label>
+      <span style="color: rgb(3, 74, 179);">Fill Opacity:</span>
+      <input id="highlightedFillOpacity" type="range" min="0" max="1" step="0.05" value="0.9" style="width: 100px;">
+    </label>
+  </div>
+
+  <!-- Dimmed Cells Column -->
+  <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+    <label style="font-weight: bold; color: rgb(3, 74, 179);">Dimmed Cells:</label>
+    <label>
+      <span style="color: rgb(3, 74, 179);">Line Opacity:</span>
+      <input id="dimmedLineOpacity" type="range" min="0" max="1" step="0.05" value="0.3" style="width: 100px;">
+    </label>
+    <label>
+      <span style="color: rgb(3, 74, 179);">Fill Opacity:</span>
+      <input id="dimmedFillOpacity" type="range" min="0" max="1" step="0.05" value="0.2" style="width: 100px;">
+    </label>
+  </div>
+
+</div>
+
+
+</div>
+
+
+<!-- Collapsible Filter Controls -->
+<!-- Filter Controls UI -->
+<div id="filterControls" class="floating-control" style="
+  display: none;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-size: 14px;
+">
+  <div id="multiFilterContainer">
+    <div class="filter-row" style="display: flex; gap: 0.5rem;">
+      <select class="filter-column"></select>
+      <select class="filter-values" multiple size="4" style="min-width: 160px;"></select>
+      <select class="filter-operator">
+        <option value="equals">=</option>
+        <option value="not-equals">≠</option>
+      </select>
+      <div style="
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: #f9f9f9;
+  font-size: 0.85em;
+">
+  <label>
+    <input type="checkbox" class="filter-ignore-empty" />
+    Ignore Empty
+  </label>
+  <label>
+    <input type="checkbox" class="filter-ignore-zero" />
+    Ignore Zero
+  </label>
+</div>
+    </div>
+    <button id="addFilterRow" class="toggle-button" type="button">+ Add Filter Criteria</button>
+  </div>
+  <div style="margin-top: 0.5rem;">
+    <button id="applyFilter" class="toggle-button" type="button">Apply Filter</button>
+    <button id="clearFilter" class="toggle-button" type="button" style="background-color: #888;">Clear Filter</button>
+  </div>
+</div>
+
+<!-- Collapsible Select Controls -->
+<div id="drawingControls" class="floating-control" style="
+  display: none;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-size: 14px;
+">
+  <button id="startDrawingBtn" class="toggle-button">Start Polygon</button>
+  <button id="clearPolylineBtn" class="toggle-button" style="background-color: #888;">Clear Polygon Line</button>
+  <button id="selectInsidePolygonBtn" class="toggle-button" disabled>Export Cell in Polygon</button>
+  <button id="exportPolygonBtn" class="toggle-button">Export Polygon</button>
+  <button id="importPolygonBtn" class="toggle-button">Import Polygon</button>
+  <input type="file" id="polygonFileInput" accept=".geojson,.json" style="display:none;">
+
+  <div style="width: 1px; height: 24px; background: #ccc; margin: 0 0.5rem;"></div>
+
+  <button id="toggleClickSelectBtn" class="toggle-button">🔘 Enable Select Cell</button>
+  <button id="exportSelectedPolygonsBtn" class="toggle-button">📤 Export Selected Cells</button>
+  <button id="clearSelectedPolygonsBtn" class="toggle-button" style="background-color: #b53131;">❌ Clear Selected Cell</button>
+</div>
+
+<!-- Collapsible Route Drawing Controls -->
+<div id="routeControls" class="floating-control" style="
+  display: none;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-size: 14px;
+">
+
+  <button id="startRouteDrawingBtn" class="toggle-button">Start Draw</button>
+  <button id="clearRoutesBtn" class="toggle-button" style="background-color: #888;">Clear All</button>
+  <button id="exportRoutesGeoJSONBtn" class="toggle-button">Export Routes</button>
+
+  <div style="
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.3rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: #f9f9f9;
+  font-size: 13px;
+  flex-wrap: wrap;
+">
+  <label style="font-weight: bold; display: flex; align-items: center; gap: 4px;">
+    Route Color:
+    <input type="color" id="routeColorPicker" value="#0d32e7">
+  </label>
+  <label style="font-weight: bold; display: flex; align-items: center; gap: 4px;">
+    Line Thickness:
+    <input type="number" id="routeThickness" min="1" max="10" value="3"
+      style="width: 60px; padding: 4px; border-radius: 4px; border: 1px solid #ccc;">
+  </label>
+</div>
+
+  <button id="deleteLastRouteBtn" class="toggle-button" style="background-color: #b53131;">🗑️ Delete Last Route</button>
+  <button id="deleteSelectedRouteBtn" class="toggle-button" style="background-color: #b53131; display: none;">❌ Delete Selected Route</button>
+
+  <div style="display: flex; flex-direction: column; gap: 0.2rem; align-items: flex-start;">
+  <div id="routeStatus" style="font-size: 0.9em; padding: 0.3rem 0; color: green;"></div>
+  <div id="routeStats" style="font-size: 0.9em; padding: 0.3rem 0;"></div>
+</div>
+
+</div>
+
+<!-- Collapsible route machine Controls -->
+<div id="rmControls" class="floating-control" style="
+  display: none;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-size: 14px;
+">
+  <button id="startMulti" class="toggle-button">Place Markers</button>
+  <button id="getDirection" class="toggle-button" disabled>Get Direction</button>
+  <button id="clearAllBtn" class="toggle-button" disabled>Clear All</button>
+  <button id="exportMIFMIDBtn" class="toggle-button" disabled>Export</button>
+  <button id="saveMarkersBtn" class="toggle-button" disabled>Save Markers</button>
+  <button id="loadMarkersBtn" class="toggle-button">Load Markers</button>
+</div>
+
+<!-- Collapsible Merge Controls -->
+<div id="mergeControls" class="floating-control" style="
+  display: none;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-size: 14px;
+">
+  <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-start;">
+    <input type="file" id="externalDataInput" accept=".csv" class="toggle-button" style="padding: 5px; background-color: #eee; color: #333; cursor: pointer;"/>
+
+    <select id="joinKeySelect" class="toggle-button" style="padding: 5px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px;">
+      <option value="site_id">site_id</option>
+      <option value="cell_id">cell_id</option>
+    </select>
+
+    <button id="mergeExternalBtn" class="toggle-button">Merge Both</button>
+    <button id="clearMergedColumnsBtn" class="toggle-button" style="background-color: #b53131;">🗑️ Clear Merged Columns</button>
+  </div>
+</div>
+
+
+<!-- Collapsible Neighbor Controls -->
+<div id="NeighborControls" class="floating-control" style="
+  display: none;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-size: 14px;
+">
+
+  <!-- File Input + Clear Button -->
+  <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+  <label style="font-weight: bold; color: rgb(3, 74, 179);">Neighbor File:</label>
+
+  <!-- Hidden file input -->
+  <input type="file" id="neighborFileInput" accept=".csv" style="display: none;" />
+
+  <!-- Custom file button -->
+  <button id="customFileButton" style="
+    padding: 6px 10px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  ">📁 Load File</button>
+
+  <!-- Clear button -->
+  <button id="clearNeighborHighlightsBtn" style="
+    padding: 6px 10px;
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  ">🧹 Clear Highlights</button>
+</div>
+
+<!-- 🔽 Collapsible Toggle Button -->
+<button id="toggleNeighborDistanceBtn" style="
+  background: none;
+  border: none;
+  color: #034ab3;
+  font-weight: bold;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-top: 0.5rem;
+">Distance Settings</button>
+
+<!-- Collapsible Distance Settings Container -->
+<div id="neighborDistanceContainer">
+  <div style="font-weight: bold; color: rgb(3, 74, 179); margin-top: 0.5rem;">
+    Neighbor Distance Settings (km):
+  </div>
+
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+    <div id="neighborRangeSettings" style="
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex: 1;
+    "></div>
+
+    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+      <button id="addNeighborRangeBtn" style="
+        padding: 6px 12px;
+        background-color: #28a745;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        white-space: nowrap;
+      ">➕ Add Range</button>
+
+      <button id="saveNeighborSettingsBtn" style="
+        padding: 6px 12px;
+        background-color: #007acc;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        white-space: nowrap;
+      ">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+
+  <!-- 🔽 Attempt Threshold Settings -->
+  <!-- 🔽 Collapsible Toggle Button -->
+<button id="toggleAttemptSettingsBtn" style="
+  background: none;
+  border: none;
+  color: #034ab3;
+  font-weight: bold;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-top: 0.5rem;
+">Attempt Settings</button>
+
+<!-- Collapsible Attempt Settings Container -->
+<div id="attemptSettingsContainer">
+  <div style="font-weight: bold; color: rgb(3, 74, 179); margin-top: 0.5rem;">
+    Neighbor Attempt Threshold Settings:
+  </div>
+
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+    <div id="attemptRangeSettings" style="
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex: 1;
+    "></div>
+
+    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+      <button id="addAttemptRangeBtn" style="
+        padding: 6px 12px;
+        background-color: #28a745;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+      ">➕ Add Range</button>
+
+      <button id="saveAttemptSettingsBtn" style="
+        padding: 6px 12px;
+        background-color: #007acc;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+      ">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+ <!-- Combined Source and Neighbor Opacity Controls -->
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem;">
+
+  <!-- Source Cell Color -->
+  <label style="font-weight: bold; color: rgb(3, 74, 179);">Source Color:</label>
+  <input type="color" id="sourceColorPicker" style="width: 36px; height: 24px; padding: 0; border: none; cursor: pointer;" />
+
+  <!-- Source Opacity -->
+  <label style="font-weight: bold; color: rgb(3, 74, 179);">Source Opacity:</label>
+  <input type="range" id="sourceOpacitySlider" min="0" max="1" step="0.05" style="width: 120px;" />
+  <span id="sourceOpacityValue" style="min-width: 28px;">0.9</span>
+
+  <!-- Neighbor Opacity -->
+  <label style="font-weight: bold; color: rgb(3, 74, 179);">Neighbor Opacity:</label>
+  <input type="range" id="neighborOpacitySlider" min="0" max="1" step="0.05" style="width: 120px;" />
+  <span id="neighborOpacityValue" style="min-width: 28px;">0.85</span>
+
+  <!-- Dimmed Opacity -->
+  <label style="font-weight: bold; color: rgb(3, 74, 179);">Dimmed Opacity:</label>
+  <input type="range" id="dimmedOpacitySlider" min="0" max="1" step="0.05" style="width: 120px;" />
+  <span id="dimmedOpacityValue" style="min-width: 28px;">0.2</span>
+</div>
+
+</div>
+<!-- Collapsible Neighbor Controls end -->
+
+</div>
+<!-- floatingToolbarWrapper end -->
+
+<!-- showmessage box setting -->
+<div id="messageBox" style="
+  position: absolute;
+  top: 100px; right: 10px;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 10px 15px;
+  border-radius: 6px;
+  display: none;
+  font-size: 16px;
+  box-shadow: 0 0 8px rgba(0,0,0,0.5);
+"></div>
+
+<div id="map"></div>
+
+<!-- Layer Legend UI -->
+<div id="legendContainer" class="legend-container">
+  <div id="legendToggle" class="legend-toggle">📑 Legend</div>
+  <div id="layerLegend" class="legend-content">
+     <!-- Moved Layering info here -->
+    <div style="font-size: 0.9em; margin-bottom: 0.5em;">
+        <strong>File:</strong><br />
+        <span id="fileNameDisplay" style="color: #1f5fbf; font-style: italic;">[none]</span>
+    </div>
+     <div style="font-size: 0.9em; margin-bottom: 0.5em;">
+        <strong>Neighbor File:</strong><br />
+        <span id="neighborFileNameDisplay" style="color: #1f5fbf; font-style: italic;">[none]</span>
+    </div>
+    <div style="font-size: 0.9em; margin-bottom: 0.5em;">
+      <strong>Layering:</strong> <span id="currentLayerKeyDisplay">[none]</span>
+    </div>
+
+    <strong>Layer Legend:</strong>
+    <ul id="layerLegendList" style="margin: 0; padding-left: 1em;"></ul>
+
+    <div id="thematicLegend" style="display: none;">
+  <!-- Continuous Legend -->
+  <div id="continuousLegend" style="display: none;">
+    <strong>Thematic Scale:</strong>
+    <div class="thematic-bar-container">
+      <div id="thematicGradientBar"></div>
+      <div class="thematic-labels">
+        <span id="thematicMin">0</span>
+        <span id="thematicMax">100</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Categorical Legend -->
+  <div id="categoricalLegend" style="display: none;"></div>
+
+  <!-- Range Legend will be handled by your renderRangeLegend() -->
+   <div id="rangeLegend" style="display: none;"></div>
+</div>
+  </div>
+</div>
+
+<div id="neighborListPanel" style="
+  position: absolute;
+  bottom: 30px;
+  right: 10px;
+  width: 260px;
+  max-height: 300px;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #ccc;
+  padding: 0.5rem;
+  font-size: 13px;
+  z-index: 999;
+  display: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  border-radius: 4px;
+"></div>
+
+<!-- 🪄 Column Mapping Modal -->
+<div id="headerMappingPrompt" style="
+  display: none;
+  position: fixed;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffffff;
+  padding: 1.5rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 99999;
+  max-width: 400px;
+  width: 90%;
+  font-family: 'Segoe UI', sans-serif;
+  animation: fadeInScale 0.2s ease-in-out;
+">
+  <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 18px; color: #333;">🔧 Missing Column Mapping</h3>
+  <div id="mappingForm" style="display: flex; flex-direction: column; gap: 1rem;"></div>
+  <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+    <button id="cancelMappingBtn" style="
+      background: #aaa;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    ">Cancel</button>
+    <button id="applyMappingBtn" style="
+      background: #007acc;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    ">Apply Mapping</button>
+  </div>
+</div>
+
+<!-- 💫 Smooth animation keyframes -->
+<style>
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+</style>
+
+
+<!-- Bottom Controls Container -->
+<div class="bottom-controls-container collapsed" id="bottomControlsContainer" style="
+  padding: 1rem 1rem 3rem; /* extra bottom padding to avoid overlap */
+  background: #f9f9f9;
+  border-top: 1px solid #ccc;
+  box-shadow: 0 -2px 6px rgba(0,0,0,0.1);
+  font-size: 14px;
+">
+
+  <div class="bottom-controls" style="display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-start;">
+
+    <!-- Macro Resize -->
+    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+      <label style="font-weight: bold;">Resize Macro Cell:</label>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <input type="range" id="radiusSlider" min="0.01" max="0.2" step="0.01" value="0.04" style="width: 300px;" />
+        <span id="radiusValue">0.04</span>
+      </div>
+    </div>
+
+    <!-- Macro Layer Step -->
+    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+      <label style="font-weight: bold;">Macro Layer Step (%):</label>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <input type="range" id="sectorLayerStepSlider" min="10" max="100" step="5" value="100" />
+        <span id="sectorLayerStepValue">100%</span>
+      </div>
+    </div>
+
+    <!-- Indoor Resize -->
+    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+      <label style="font-weight: bold;">Resize Indoor Cell:</label>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <input type="range" id="indoorRadiusSlider" min="0.00005" max="0.001" step="0.00005" value="0.0003" style="width: 300px;" />
+        <span id="indoorRadiusValue">0.0003</span>
+      </div>
+    </div>
+
+    <!-- Indoor Layer Step -->
+    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+      <label style="font-weight: bold;">Indoor Layer Step (%):</label>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <input type="range" id="layerStepSlider" min="10" max="100" step="5" value="50" />
+        <span id="layerStepValue">50%</span>
+      </div>
+    </div>
+
+    <!-- Toggle Style Panel -->
+    <div style="display: flex; flex-direction: column;">
+      <button id="toggleStyleControls" class="toggle-button">
+        Show Style▼</button>
+    </div>
+    <div style="display: flex; flex-direction: column;">
+        <button id="toggleLabelControls" class="toggle-button">
+        Show Label▼</button>
+    </div>
+    <!-- Toggle Layering Controls Panel -->
+    <div style="display: flex; flex-direction: column;">
+        <button id="toggleLayerByControls" class="toggle-button">
+        Show Layer▼
+    </button>
+</div>
+  </div>
+
+  <!-- Layer Controls Panel -->
+<div id="layerByControlsPanel" style="
+  display: none;
+  margin-top: 1.5rem;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  border-top: 1px dashed #ccc;
+  padding-top: 1rem;
+">
+ <!-- Layering Column Selection -->
+  <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+    <label style="font-weight: bold;">Layering Columns:</label>
+    <select id="layerKeySelect" multiple style="
+  width: 220px;
+  height: 200px; /* force 10 visible rows */
+  font-size: 14px;
+  line-height: 1.4;
+  padding: 4px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  overflow-y: auto;
+"></select>
+  </div>
+  <!-- Manual Layer Order -->
+  <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+    <label style="font-weight: bold;">Manual Layer Order:</label>
+    <ul id="layerGroupSortList" style="
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      min-width: 180px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 13px;
+      background: white;
+    "></ul>
+  </div>
+  <!-- Indoor Logic Selection -->
+  <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+    <div style="display: flex; flex-direction: column;">
+      <label style="font-weight: bold;">Column for Indoor Logic:</label>
+      <select id="indoorColumnSelect" style="
+        min-width: 180px;
+        padding: 4px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        font-size: 13px;
+      ">
+        <option value="">-- Select Column --</option>
+      </select>
+    </div>
+    <div style="display: flex; flex-direction: column;">
+      <label style="font-weight: bold;">Value(s) to Treat as Indoor:</label>
+      <select id="indoorValueSelect" multiple style="
+  width: 220px;
+  height: 180px;
+  font-size: 14px;
+  line-height: 1.4;
+  padding: 4px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  overflow-y: auto;
+"></select>
+    </div>
+  </div>
+  <!-- Mapbox Usage Notice -->
+<div style="margin-bottom: 0.5rem; font-size: 13px; background: #fffbe6; border: 1px solid #e0c97f; padding: 10px; border-radius: 6px;">
+  <strong>Key in mapbox access code below 👇 </strong> Note: To use Mapbox layers, you must <a href="https://account.mapbox.com/auth/signup/" target="_blank">register for a free Mapbox account</a> and obtain an access token.
+  Please monitor your Mapbox usage to avoid unexpected charges — Mapbox offers limited free tier usage.
+</div>
+
+<div id="mapboxTokenPanel" style="margin-bottom: 1rem; padding: 1rem; border: 1px solid #ccc; border-radius: 6px;">
+  <label for="mapboxTokenInput" style="font-weight: bold;">Mapbox Access Token:</label>
+  <input type="text" id="mapboxTokenInput" autocomplete="off" placeholder="Enter your Mapbox token here" style="width: 30%; padding: 6px; margin-left: 10px;" />
+  <button onclick="applyMapboxToken()" style="margin-left: 10px;">Apply Token</button>
+  <button onclick="clearMapboxToken()" style="margin-left: 10px; color: red;">Clear Token</button>
+</div>
+
+</div>
+
+  <!-- Label Controls Panel -->
+<div id="labelControlsPanel" style="
+  display: none;
+  margin-top: 1.5rem;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  border-top: 1px dashed #ccc;
+  padding-top: 1rem;
+">
+ <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+    <label style="font-weight: bold;">Label Column:</label>
+    <select id="labelColumnSelect" style="
+      min-width: 180px;
+      padding: 4px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      font-size: 13px;
+    ">
+      <option value="">Select Label Column</option>
+    </select>
+    <button id="toggleLabelsBtn" style="
+      margin-top: 0.5rem;
+      padding: 5px 10px;
+      border: none;
+      background-color: #007acc;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    ">Show Labels</button>
+  </div>
+
+  <!-- Font Size -->
+  <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+    <label style="font-weight: bold;">Font Size:</label>
+    <input type="number" id="labelFontSizeInput" value="12" min="8" max="20" style="
+      width: 70px;
+      padding: 4px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    ">
+  </div>
+
+  <!-- Font Color -->
+  <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+    <label style="font-weight: bold;">Font Color:</label>
+    <input type="color" id="labelFontColorInput" value="#333333" style="width: 50px;">
+  </div>
+
+  <!-- Font Opacity -->
+  <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+    <label style="font-weight: bold;">Font Opacity:</label>
+    <input type="range" id="labelFontOpacityInput" min="0.1" max="1" value="1" step="0.05">
+    <span id="labelFontOpacityValue">1.0</span>
+  </div>
+
+  <!-- Halo Toggle + Color -->
+  <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+    <label style="font-weight: bold;">Halo:</label>
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <input type="checkbox" id="labelHaloToggle" checked>
+      <input type="color" id="labelHaloColorInput" value="#ffffff" style="width: 50px;">
+    </div>
+  </div>
+
+  <!-- Proximity Threshold -->
+  <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+    <label style="font-weight: bold;">Proximity Threshold:</label>
+    <input type="range" id="proximityThresholdInput" min="10" max="50" value="25" step="1">
+    <span id="proximityThresholdValue">25 px</span>
+  </div>
+
+  <!-- Spiral Radius Step -->
+  <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+    <label style="font-weight: bold;">Spiral Radius Step:</label>
+    <input type="range" id="spiralRadiusStepInput" min="2" max="20" value="6" step="1">
+    <span id="spiralRadiusStepValue">6 px</span>
+  </div>
+
+  <!-- Spiral Angle Step -->
+  <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+    <label style="font-weight: bold;">Spiral Angle Step:</label>
+    <input type="range" id="spiralAngleStepInput" min="5" max="90" value="25" step="1">
+    <span id="spiralAngleStepValue">25°</span>
+  </div>
+</div>
+
+
+  <!-- Style Controls Panel -->
+  <div id="styleControls" style="
+    display: none;
+    margin-top: 1.5rem;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    border-top: 1px dashed #ccc;
+    padding-top: 1rem;
+  " class="bottom-style-controls">
+
+    <!-- Dot Color -->
+    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+      <label style="font-weight: bold;">Site Color:</label>
+      <input type="color" id="dotColor" value="#000000" style="width: 50px;">
+    </div>
+
+    <!-- Dot Opacity -->
+    <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+      <label for="dotOpacity" style="font-weight: bold;">Dot Opacity:</label>
+      <input type="range" id="dotOpacity" min="0.1" max="1.0" step="0.1" value="1.0" />
+      <span id="dotOpacityValue">1.0</span>
+    </div>
+
+    <!-- Line Opacity -->
+    <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+      <label for="lineOpacity" style="font-weight: bold;">Line Opacity:</label>
+      <input type="range" id="lineOpacity" min="0.1" max="1.0" step="0.1" value="1.0" />
+      <span id="lineOpacityValue">1.0</span>
+    </div>
+
+    <!-- Fill Opacity -->
+    <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+      <label for="opacitySlider" style="font-weight: bold;">Fill Opacity:</label>
+      <input type="range" id="opacitySlider" min="0.1" max="1.0" step="0.1" value="0.5" />
+      <span id="opacityValue">0.5</span>
+    </div>
+
+    <!-- Optional Hidden Color Inputs -->
+    <input type="color" id="lineColor" value="#87CEEB" style="display: none;">
+    <input type="color" id="fillColor" value="#87CEEB" style="display: none;">
+
+    <!-- Layer Color Overrides (injected dynamically) -->
+    <div id="layerColorOverrides" style="
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    "></div>
+  </div>
+</div>
+
+<!-- Bottom Toggle Button -->
+<div id="bottomControlsToggleWrapper" style="
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  z-index: 1001;
+">
+  <button id="toggleBottomControls" class="toggle-button" style="
+    padding: 4px 12px;
+    background-color: rgba(0, 122, 204, 0.85);  /* Slightly transparent blue */
+    color: white;
+    border: none;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0.85;  /* Optional: controls overall transparency */
+    transition: opacity 0.2s ease;
+  " onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">
+    ▲ ⚙️ Settings
+  </button>
+</div>
+</div>
+
+<!-- Hidden tooltip content -->
+<div style="display: none;">
+  <div id="tooltip-Thematic">
+     Thematic map to highlight different colors using either individual, user range or continuous.<br><br>
+  </div>
+</div>
+
+<div id="aboutPopup" style="
+  display: none;
+  position: fixed;
+  top: 20%;
+  left: 50%;
+  transform: translate(-50%, -20%);
+  background: #fff;
+  padding: 20px;
+  max-width: 400px;
+  border: 1px solid #aaa;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+  font-size: 0.95em;
+  z-index: 9999;
+">
+<h3>About RFMapTool</h3>
+<p>This tool helps RF network engineers visualize LTE/NR cells and neighbor data in a browser-based map view.</p>
+<p>✅ Free to use — no login, license, or installation required.</p>
+<p>🔒 All data stays local in your browser – no uploads</p>
+<p>Author: JS<br>Email: celview3g@gmail.com</p>
+<p style="margin-top: 10px;">
+  ☕ <strong>Found RFMapTool useful?</strong><br>
+  I built this lightweight tool to make LTE/NR cell data easier to visualize.<br>
+  While I’m not actively adding new features right now,<br>
+  you're welcome to support it if it helped your work or saved you time:<br>
+  👉 <a href="https://ko-fi.com/celview" target="_blank">ko-fi.com/celview</a><br>
+  Thank you for using it.
+</p>
+  <button onclick="document.getElementById('aboutPopup').style.display='none'" style="margin-top: 10px;">Close</button>
+</div>
+
+<div id="searchSuggestions" style="position: absolute; z-index: 999; background: white; border: 1px solid #ccc; max-height: 200px; overflow-y: auto; display: none;"></div>
+
+<div id="cursorModeLabel" style="
+  position: fixed;
+  pointer-events: none;
+  background: rgba(240, 240, 240, 0.95);
+  padding: 1px 5px;
+  font-size: 0.75em;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  display: none;
+  z-index: 9999;">
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/papaparse@5.3.2/papaparse.min.js"></script>
+<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/leaflet-pip@latest/leaflet-pip.min.js"></script>
+<script src="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- Routing Machine -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.min.js"></script>
+  <!-- PolylineDecorator Plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
+
+<script src="userconfig.js"></script>
+<script src="function.js"></script>
+<script>
+
+let clickSelectEnabled = false;
+
+let thematicClassRanges = []; // [{min: 1000, max: 2000, color: "#00ff00"}]
+let thematicMode = "continuous";
+let categoryColorMap = {};  // key: value, value: color
+let thematicColumn = null;
+let thematicColorScale = chroma.scale(['blue', 'red']).mode('lab');  // You can choose others
+let thematicRange = [0, 100];  // Will auto-detect later
+
+let searchHighlightMarkers = [];  // Only stores red markers from search
+let activeRoutePoints = [];
+let activeRoutePolyline = null;
+let routePolylines = [];  // store all completed routes
+let routeDrawingActive = false;
+let totalDistanceKm = 0;
+let throttleTimer = null;
+let selectedRoutePolyline = null;
+let skipNextMapClick = false;
+let activeRouteCursorLine = null;
+
+let labelLayerGroup = L.layerGroup();
+let labelsVisible = false;
+
+let labelFontSize = 12;
+let labelFontColor = '#333333';
+let labelHaloColor = '#ffffff';
+
+let proximityThreshold = 25;
+let spiralRadiusStep = 6;
+let spiralAngleStep = 25;
+let haloEnabled = true;
+let labelFontOpacity = 1;
+
+let guidelineLine = null;
+let trailingRouteLine = null;
+
+let showCells = true;
+
+let drawingControlsVisible = false;
+
+let placingRouteMarkers = false; //for disable popup when placing routing markers
+let connectionLineGroup = L.layerGroup();
+let selectedPolygon = null;
+
+const jitterMap = new Map(); // key = lat|lng|azimuth|layer|type, value = count
+const jitterCounter = new Map(); // key → current instance count
+
+  //================================================================
+function promptUserForColumnMapping(rawHeaders, missingKeys) {
+  const container = document.getElementById("headerMappingPrompt");
+  const form = document.getElementById("mappingForm");
+  const savedMap = JSON.parse(localStorage.getItem("customHeaderMapping") || "{}");
+
+  form.innerHTML = ""; // clear previous
+
+  missingKeys.forEach(key => {
+    const wrapper = document.createElement("div");
+    wrapper.style.display = "flex";
+    wrapper.style.flexDirection = "column";
+    wrapper.style.gap = "0.25rem";
+
+    const label = document.createElement("label");
+    label.textContent = `Select column for: ${key}`;
+    label.style.fontWeight = "bold";
+
+    const select = document.createElement("select");
+    select.dataset.key = key;
+    select.style.padding = "6px";
+    select.style.border = "1px solid #ccc";
+    select.style.borderRadius = "4px";
+    select.style.fontSize = "14px";
+
+    const blank = document.createElement("option");
+    blank.value = "";
+    blank.textContent = "-- Select --";
+    select.appendChild(blank);
+
+    rawHeaders.forEach(h => {
+      const opt = document.createElement("option");
+      opt.value = h;
+      opt.textContent = h;
+      if (savedMap[key] === h) opt.selected = true;
+      select.appendChild(opt);
+    });
+
+    wrapper.appendChild(label);
+    wrapper.appendChild(select);
+    form.appendChild(wrapper);
+  });
+
+  container.style.display = "block";
+
+  document.getElementById("applyMappingBtn").onclick = () => {
+    const selects = form.querySelectorAll("select");
+    const newMap = {};
+
+    selects.forEach(sel => {
+      if (sel.value) {
+        newMap[sel.dataset.key] = sel.value;
+      }
+    });
+
+    localStorage.setItem("customHeaderMapping", JSON.stringify(newMap));
+    container.style.display = "none";
+
+    for (const [key, value] of Object.entries(newMap)) {
+      if (!window.expectedHeaders[key].includes(value)) {
+        window.expectedHeaders[key].unshift(value);
+      }
+    }
+
+    if (window._lastRawHeaders) {
+      if (validateCSVHeaders(window._lastRawHeaders)) {
+        window._secHandler(window._lastCSVRows);
+      }
+    }
+  };
+
+  document.getElementById("cancelMappingBtn").onclick = () => {
+    container.style.display = "none";
+  };
+}
+
+
+//=====================================================================================
+
+
+const savedCenter = JSON.parse(localStorage.getItem("lastMapCenter"));
+const savedZoom = localStorage.getItem("lastMapZoom");
+
+const defaultCenter = [25.037822, 121.548829];
+const defaultZoom = 15;
+
+const map = L.map("map", {
+  zoomControl: false,
+  editable: true,
+  zoomSnap: 0.1,    // 👈 allows decimal zoom steps
+  zoomDelta: 0.1    // 👈 smooth mouse wheel/pinch zooming
+}).setView(
+  savedCenter || defaultCenter,
+  savedZoom ? parseFloat(savedZoom) : defaultZoom // 👈 allow decimal zoom level from saved
+);
+
+
+map.createPane("connectionPane");
+map.getPane("connectionPane").style.zIndex = 750;  // higher than overlayPane (default 650)
+map.getPane("connectionPane").style.pointerEvents = "none";  // makes lines not block clicks
+connectionLineGroup.addTo(map);
+const connectionRenderer = L.canvas({ pane: "connectionPane" });
+
+
+  // Define multiple base layers
+const baseOSM = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19, minZoom: 0,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>'
+});
+const baseCartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>, &copy; <a href="https://carto.com/" target="_blank">CARTO</a>'
+});
+const baseCartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>, &copy; <a href="https://carto.com/" target="_blank">CARTO</a>'
+});
+const baseEsriImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Tiles &copy; <a href="https://www.esri.com/" target="_blank">Esri</a> — Source: Esri, Maxar, Earthstar Geographics, USDA, USGS, AeroGRID, IGN, and the GIS User Community'
+});
+const baseEsriStreets = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Tiles &copy; <a href="https://www.esri.com/" target="_blank">Esri</a>'
+});
+const baseMapboxStreets = L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=', {
+  tileSize: 512,
+  zoomOffset: -1,
+  maxZoom: 22,
+  attribution: '&copy; <a href="https://www.mapbox.com/about/maps/" target="_blank">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/" target="_blank">OpenStreetMap contributors</a>'
+});
+
+// Dummy empty layer for "No Map"
+const noMapLayer = L.layerGroup(); // remains empty
+// Base layer will be added from localStorage (see below)
+
+
+const baseMaps = {
+  "OpenStreetMap": baseOSM,
+  "Carto Light": baseCartoLight,
+  "Carto Dark": baseCartoDark,
+  "ESRI Satellite": baseEsriImagery,
+  "ESRI Street Map": baseEsriStreets,
+  "Off Map": noMapLayer
+};
+
+// Restore last selected base map
+const lastBaseMap = localStorage.getItem("lastBaseMap");
+if (lastBaseMap && baseMaps[lastBaseMap]) {
+  baseMaps[lastBaseMap].addTo(map);
+} else {
+  baseOSM.addTo(map); // fallback
+}
+
+let baseLayerControl = L.control.layers(baseMaps, null, {
+  position: 'bottomright',
+  collapsed: true
+}).addTo(map);
+
+// Save selected base map to localStorage
+map.on('baselayerchange', function (e) {
+  localStorage.setItem("lastBaseMap", e.name);
+  syncBackgroundPickerVisibility();
+});
+
+// 👇 Create the color picker inside the control
+insertColorPickerIntoLayerControl();
+
+// 👇 Ensure background responds to base layer change
+map.on('baselayerchange', function (e) {
+  syncBackgroundPickerVisibility();
+});
+
+map.attributionControl.setPrefix(
+  'Map powered by <a href="https://leafletjs.com/" target="_blank">Leaflet</a>'
+);
+
+  //===== geojson-Drawing controls=====
+  function setDrawingControlsVisibility(show) {
+  if (show && !drawingControlsVisible) {
+    map.pm.addControls({
+      position: 'bottomright',
+      drawMarker: false,
+      drawPolyline: true,
+      drawPolygon: false,
+      drawCircle: false,
+      drawRectangle: false,
+      drawCircleMarker: false,
+      editMode: false,
+      dragMode: false,
+      cutPolygon: false,
+      removalMode: true
+    });
+    drawingControlsVisible = true;
+  } else if (!show && drawingControlsVisible) {
+    map.pm.removeControls();
+    drawingControlsVisible = false;
+  }
+}
+console.log(L.PM.version);
+
+
+
+const layerControlEl = document.querySelector('.leaflet-control-layers');
+layerControlEl.addEventListener('mouseenter', () => {
+  layerControlEl.classList.add('leaflet-control-layers-expanded');
+});
+
+layerControlEl.addEventListener('mouseleave', () => {
+  layerControlEl.classList.remove('leaflet-control-layers-expanded');
+});
+
+const canvasRenderer = L.canvas({ padding: 0.5 });
+map.doubleClickZoom.disable();
+// === [Lat/Lng Hover Display] ===
+const coordDisplay = L.control({ position: 'bottomleft' });
+
+coordDisplay.onAdd = function () {
+  this._div = L.DomUtil.create('div', 'coord-display');
+  this._div.innerHTML = "Lat: -, Lng: -";
+  return this._div;
+};
+
+coordDisplay.update = function (latlng) {
+  this._div.innerHTML = `Lat: ${latlng.lat.toFixed(6)}, Lng: ${latlng.lng.toFixed(6)}`;
+};
+
+coordDisplay.addTo(map);
+
+map.on("mousemove", function (e) {
+  coordDisplay.update(e.latlng);
+});
+
+//=================================================doubleclick action============================================================================
+map.on("dblclick", function (e) {
+  const isDrawingRoute = routeDrawingActive;
+  const isDrawingPolygon = drawing;
+
+  // ================== Polygon Drawing Mode ==================
+  if (isDrawingPolygon) {
+    drawing = false;
+
+    if (guidelineLine) {
+      map.removeLayer(guidelineLine);
+      guidelineLine = null;
+    }
+
+    document.getElementById("startDrawingBtn").textContent = "Start Drawing Polyline";
+    document.getElementById("map").style.cursor = '';
+    hideCursorLabel();
+
+    if (drawnPoints.length > 2) {
+      drawnPoints.push(drawnPoints[0]);
+
+      if (drawnPolyline) {
+        map.removeLayer(drawnPolyline);
+        drawnPolyline = null;
+      }
+
+const newPolygon = L.polygon(drawnPoints, {
+  color: 'red',
+  weight: 3,
+  opacity: 0.8,
+  fillOpacity: 0.2,
+  fillColor: 'red'
+});
+
+newPolygon.addTo(map);
+attachPolygonClickToSelect(newPolygon);
+newPolygon.enableEdit();
+
+// ✅ Store it in the array
+polygonLayers.push(newPolygon);
+
+
+      document.getElementById("selectInsidePolygonBtn").disabled = false;
+      window._activePolygon = null;
+    } else {
+      alert("Need at least 3 points to form a polygon.");
+    }
+
+    drawnPoints = [];
+    map.eachLayer(function (layer) {
+      if (layer instanceof L.CircleMarker) {
+        map.removeLayer(layer);
+      }
+    });
+
+    return;
+  }
+
+  // ================== Route Drawing Mode ==================
+  if (isDrawingRoute) {
+    console.log("Draw Route double click event triggered");
+
+    if (activeRoutePolyline && activeRoutePoints.length > 1) {
+      const dedupedPoints = [];
+      const seen = [];
+      const tolerance = 2;
+
+      for (const pt of activeRoutePoints) {
+        const isDuplicate = seen.some(prev => map.distance(prev, pt) < tolerance);
+        if (!isDuplicate) {
+          dedupedPoints.push(pt);
+          seen.push(pt);
+        }
+      }
+
+      activeRoutePoints = dedupedPoints;
+      activeRoutePolyline.setLatLngs(activeRoutePoints);
+
+      if (activeRoutePoints.length < 2) {
+        map.removeLayer(activeRoutePolyline);
+        activeRoutePolyline = null;
+        console.warn("Route discarded: not enough points after deduplication.");
+        return;
+      }
+
+      activeRoutePolyline.setStyle({
+        color: activeRoutePolyline.options.routeColor,
+        weight: activeRoutePolyline.options.routeWeight,
+        opacity: 1
+      });
+
+      routePolylines.push(activeRoutePolyline);
+
+      const active = layers.find(l => l && l.controlId === activeLayerId);
+      if (active && active.layer instanceof L.FeatureGroup) {
+        const routeFeature = activeRoutePolyline.toGeoJSON();
+
+        L.geoJSON(routeFeature, {
+          style: {
+            color: activeRoutePolyline.options.routeColor || "#3388ff",
+            weight: activeRoutePolyline.options.routeWeight || 3,
+            opacity: 1
+          }
+        }).eachLayer(l => {
+          l.options._isTemporaryRoute = true;
+          l.options.routeColor = activeRoutePolyline.options.routeColor;
+          l.options.routeWeight = activeRoutePolyline.options.routeWeight;
+
+          l.on("click", function (e) {
+            if (selectedRoutePolyline) {
+              selectedRoutePolyline.setStyle({
+                color: selectedRoutePolyline.options.routeColor,
+                weight: selectedRoutePolyline.options.routeWeight,
+                opacity: 1
+              });
+            }
+
+            selectedRoutePolyline = this;
+            this.setStyle({
+              color: "#FFD700",
+              weight: this.options.routeWeight + 2
+            });
+
+            skipNextMapClick = true;
+            e.originalEvent.stopPropagation();
+          });
+
+          active.layer.addLayer(l);
+        });
+
+        map.removeLayer(activeRoutePolyline);
+      }
+
+      if (selectedRoutePolyline === activeRoutePolyline) {
+        selectedRoutePolyline = null;
+      }
+    }
+
+    if (trailingRouteLine) {
+      map.removeLayer(trailingRouteLine);
+      trailingRouteLine = null;
+    }
+
+    if (activeRouteCursorLine) {
+      map.removeLayer(activeRouteCursorLine);
+      activeRouteCursorLine = null;
+    }
+
+    activeRoutePoints = [];
+    activeRoutePolyline = null;
+
+    updateRouteStats();
+    updateRouteStatus();
+    return;
+  }
+
+  // ================== Default Mode: Show Lat/Lng Popup ==================
+  if (!isDrawingRoute && !isDrawingPolygon) {
+    const lat = e.latlng.lat.toFixed(6);
+    const lng = e.latlng.lng.toFixed(6);
+    L.popup()
+      .setLatLng(e.latlng)
+      .setContent(`Lat: ${lat}<br>Lng: ${lng}`)
+      .openOn(map);
+  }
+});
+
+//double click end======================================================
+
+let columnMap = {}; // Holds actual header used
+
+let drawing = false;
+let drawnPoints = [];
+let drawnPolyline = null;
+//let polygonLayerGroup = null;
+let polygonLayers = [];
+
+document.getElementById('startDrawingBtn').onclick = function() {
+  drawing = !drawing;
+  this.textContent = drawing ? "Stop Drawing" : "Start Drawing Polyline";
+};
+
+document.getElementById('clearPolylineBtn').onclick = function() {
+  if (drawnPolyline) {
+    map.removeLayer(drawnPolyline);
+    drawnPolyline = null;
+  }
+  drawnPoints = [];
+
+  // Remove all circle markers
+  map.eachLayer(function(layer) {
+    if (layer instanceof L.CircleMarker) {
+      map.removeLayer(layer);
+    }
+  });
+};
+
+map.on('click', function(e) {
+  if (!drawing) return;
+
+  drawnPoints.push(e.latlng);
+
+  if (drawnPolyline) {
+    map.removeLayer(drawnPolyline);
+  }
+
+  drawnPolyline = L.polyline(drawnPoints, {
+    color: 'blue',
+    weight: 3,
+    opacity: 0.8
+  }).addTo(map);
+
+  L.circleMarker(e.latlng, {
+    radius: 2,
+    color: 'blue',
+    fillColor: '#f03',
+    fillOpacity: 0.7
+  }).addTo(map);
+});
+
+  const sectorData = [];
+  let markers = [];
+  let markerGroup = null; // 🆕 for batched marker rendering
+  let sectors = [];
+  let selectedPolygons = new Set(); // stores polygon objects
+  let selectedCellIds = new Set(); // ✅ new: stores cell_id strings
+  let polygonToRowMap = new Map();
+  let sectorGroup = null; // New: for grouped polygons
+  let layerStepPercentage = 50;
+  let sectorLayerStepPercentage = 100;
+  let showDots = true;
+  window._beamwidthWarned = false;
+
+  const radiusSlider = document.getElementById("radiusSlider");
+  const opacitySlider = document.getElementById("opacitySlider");
+  const lineOpacitySlider = document.getElementById("lineOpacity");
+  const dotColorInput = document.getElementById("dotColor");
+  const dotOpacityInput = document.getElementById("dotOpacity");
+  const radiusValue = document.getElementById("radiusValue");
+  const opacityValue = document.getElementById("opacityValue");
+  const lineOpacityValue = document.getElementById("lineOpacityValue");
+  const dotOpacityValue = document.getElementById("dotOpacityValue");
+  const indoorRadiusSlider = document.getElementById("indoorRadiusSlider");
+  const indoorRadiusValue = document.getElementById("indoorRadiusValue");
+  
+   // Restore saved settings from localStorage
+const savedRadius = localStorage.getItem("macroRadius");
+if (savedRadius !== null) {
+  radiusSlider.value = savedRadius;
+  radiusValue.textContent = savedRadius;
+}
+const savedIndoorRadius = localStorage.getItem("indoorRadius");
+if (savedIndoorRadius !== null) {
+  indoorRadiusSlider.value = savedIndoorRadius;
+  indoorRadiusValue.textContent = savedIndoorRadius;
+}
+const savedSectorStep = localStorage.getItem("sectorLayerStepPercentage");
+if (savedSectorStep !== null) {
+  sectorLayerStepSlider.value = savedSectorStep;
+  sectorLayerStepValue.textContent = `${savedSectorStep}%`;
+  sectorLayerStepPercentage = parseInt(savedSectorStep);
+}
+const savedIndoorStep = localStorage.getItem("layerStepPercentage");
+if (savedIndoorStep !== null) {
+  layerStepSlider.value = savedIndoorStep;
+  layerStepValue.textContent = `${savedIndoorStep}%`;
+  layerStepPercentage = parseInt(savedIndoorStep);
+}
+const savedLineOpacity = localStorage.getItem("lineOpacity");
+if (savedLineOpacity !== null) {
+  lineOpacitySlider.value = savedLineOpacity;
+  lineOpacityValue.textContent = savedLineOpacity;
+}
+const savedFillOpacity = localStorage.getItem("fillOpacity");
+if (savedFillOpacity !== null) {
+  opacitySlider.value = savedFillOpacity;
+  opacityValue.textContent = savedFillOpacity;
+}
+const savedDotColor = localStorage.getItem("dotColor");
+if (savedDotColor !== null) {
+  dotColorInput.value = savedDotColor;
+}
+const savedDotOpacity = localStorage.getItem("dotOpacity");
+if (savedDotOpacity !== null) {
+  dotOpacityInput.value = savedDotOpacity;
+  dotOpacityValue.textContent = savedDotOpacity;
+}
+
+const routeColorPicker = document.getElementById("routeColorPicker");
+const routeThicknessInput = document.getElementById("routeThickness");
+ 
+let layerKeyColumns = [];
+// ========== PER-LAYER COLOR SYSTEM ================
+const layerColors = {};
+const maxColors = 20;
+const colorScale = chroma.scale('Set2').mode('lch').colors(maxColors);
+
+  radiusSlider.addEventListener("input", () => {
+  radiusValue.textContent = radiusSlider.value;
+  localStorage.setItem("macroRadius", radiusSlider.value); // 👈 Save to localStorage
+  throttleRedraw2();
+});
+
+  let currentOpacity = parseFloat(opacitySlider.value);
+
+  
+//==================================================================================================
+// =================================== Event Listeners =============================================
+//==================================================================================================
+  
+  radiusSlider.addEventListener("input", throttleRedraw2);  
+  opacitySlider.addEventListener("input", () => {
+  currentOpacity = parseFloat(opacitySlider.value);
+  opacityValue.textContent = currentOpacity;
+  localStorage.setItem("fillOpacity", opacitySlider.value);
+  throttleRedraw2();
+});
+
+  lineOpacitySlider.addEventListener("input", () => {
+  lineOpacityValue.textContent = lineOpacitySlider.value;
+  localStorage.setItem("lineOpacity", lineOpacitySlider.value);
+  throttleRedraw2();
+});
+
+indoorRadiusSlider.addEventListener("input", () => {
+  indoorRadiusValue.textContent = indoorRadiusSlider.value;
+  localStorage.setItem("indoorRadius", indoorRadiusSlider.value);
+  throttleRedrawsec();
+});
+
+  document.getElementById("lineColor").addEventListener("input", () => {
+  throttleRedrawsec();
+});
+
+document.getElementById("fillColor").addEventListener("input", () => {
+  throttleRedrawsec();
+});
+  
+  dotOpacityInput.addEventListener("input", () => {
+  const val = dotOpacityInput.value;
+  dotOpacityValue.textContent = val;
+  localStorage.setItem("dotOpacity", val);  // ✅ Save
+  drawSiteMarkers();
+});
+
+dotColorInput.addEventListener("input", () => {
+  const val = dotColorInput.value;
+  localStorage.setItem("dotColor", val);    // ✅ Save
+  drawSiteMarkers();
+});
+
+  let highlightActive = false;
+  
+  document.getElementById("mergeExternalBtn").addEventListener("click", () => {
+  const file = document.getElementById("externalDataInput").files[0];
+  const joinKey = document.getElementById("joinKeySelect").value;
+
+  if (!file) {
+    alert("⚠️ Please select an external CSV file first.");
+    return;
+  }
+
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete: results => {
+      if (!results.data || results.data.length === 0) {
+        alert("⚠️ No data in external file.");
+        return;
+      }
+      mergeExternalMetrics(results.data, joinKey);
+	  console.log("Sample row after merge:", sectorData[0]);
+	  updateColumnDropdowns();
+      redrawSectors();
+      drawSiteMarkers();
+    }
+  });
+});
+
+document.getElementById("highlightButton").addEventListener("click", () => {
+  const codeType = codeTypeSelect.value;
+  const codeValue = codeValueInput.value.trim().toUpperCase();
+  const color = document.getElementById("highlightColor").value;
+  if (!codeType) return alert("Please select a code type (column).");
+  if (!codeValue) return alert("Please enter a code value.");
+
+  highlightActive = false;
+  sectorData.forEach(row => {
+    if ((row[codeType] || "").toString().trim().toUpperCase() === codeValue) {
+      row.__highlight__ = color;
+      highlightActive = true;
+    }
+  });
+
+  redrawSectors();
+  drawSiteMarkers();
+});
+
+
+ document.getElementById("clearHighlightButton").addEventListener("click", () => {
+  highlightActive = false;
+
+  sectorData.forEach(row => delete row.__highlight__);
+  if (typeof indoorData !== "undefined") {
+    indoorData.forEach(row => delete row.__highlight__);
+  }
+
+  redrawSectors();
+  drawSiteMarkers();
+
+  // Clear UI fields if you want
+  codeTypeSelect.value = "";
+  codeValueInput.value = "";
+});
+
+
+//-------------------search button enhance-------------------------------------------------------
+
+ document.getElementById("searchButton").addEventListener("click", () => {
+  const query = document.getElementById("searchInput").value.trim().toUpperCase();
+  if (!query) return;
+
+  searchHighlightMarkers.forEach(m => map.removeLayer(m));
+  searchHighlightMarkers = [];
+
+  const match = sectorData.find(r =>
+    (r[columnMap.site_id] && r[columnMap.site_id].toUpperCase() === query) ||
+    (r[columnMap.cell_id] && r[columnMap.cell_id].toUpperCase() === query) ||
+    (r[columnMap.site_name] && r[columnMap.site_name].toUpperCase().includes(query))
+  );
+
+  if (match) {
+    highlightMatch(match);
+    document.getElementById("searchSuggestions").style.display = "none";
+  } else {
+    alert("No match found.");
+  }
+});
+
+
+  document.getElementById("searchInput").addEventListener("keypress", function(e) {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    document.getElementById("searchButton").click();
+  }
+});
+
+document.getElementById("searchInput").addEventListener("input", function () {
+    const input = this.value.trim().toUpperCase();
+  if (input.length < 3) return;
+  showSuggestions(input);
+});
+
+
+function highlightMatch(match) {
+  searchHighlightMarkers.forEach(m => map.removeLayer(m));
+  searchHighlightMarkers = [];
+
+  const lat = parseFloat(match[columnMap.latitude]);
+  const lng = parseFloat(match[columnMap.longitude]);
+  const cellId = match[columnMap.cell_id]?.toUpperCase();
+
+  const marker = L.circleMarker([lat, lng], {
+    color: "red", radius: 8, fillOpacity: 1
+  }).addTo(map);
+
+  searchHighlightMarkers.push(marker);
+  document.getElementById("clearSearchButton").style.display = "inline-block";
+  map.setView([lat, lng], 17);
+
+  // Add a link inside the popup using the Cell ID itself
+ const popupContent = `
+  <b>${match[columnMap.site_id]}</b><br>
+  <a href="#" style="color:blue; text-decoration:underline;" onclick="highlightCellPolygon('${cellId}');return false;">${cellId}</a><br>
+  ${match[columnMap.site_name] || ''}
+`;
+
+
+  marker.bindPopup(popupContent).openPopup();
+  markers.push(marker);
+}
+
+
+function highlightCellPolygon(cellId) {
+  if (window.cellPolygonMap && window.cellPolygonMap[cellId]) {
+    const polygon = window.cellPolygonMap[cellId];
+
+    // Close any open popup
+    map.closePopup();
+
+    const originalStyle = {
+      weight: polygon.options.weight,
+      color: polygon.options.color,
+      fillColor: polygon.options.fillColor,
+      fillOpacity: polygon.options.fillOpacity
+    };
+
+    polygon.setStyle({
+      weight: 4,
+      color: "red",
+      fillColor: "red",
+      fillOpacity: 0.9
+    });
+
+    map.fitBounds(polygon.getBounds(), { maxZoom: 19 });
+
+    setTimeout(() => {
+      polygon.setStyle(originalStyle);
+    }, 8000);
+  } else {
+    alert("Cell polygon not rendered yet. Please pan/zoom to bring it into view.");
+  }
+}
+
+
+
+
+document.getElementById("searchInput").addEventListener("focus", function () {
+  const input = this.value.trim().toUpperCase();
+  if (input.length >= 3) {
+    showSuggestions(input);
+  }
+});
+
+function showSuggestions(input) {
+  const suggestionBox = document.getElementById("searchSuggestions");
+  suggestionBox.innerHTML = "";
+  suggestionBox.style.display = "none";
+
+  const matches = sectorData.filter(r =>
+    (r[columnMap.site_id] && r[columnMap.site_id].toUpperCase().includes(input)) ||
+    (r[columnMap.cell_id] && r[columnMap.cell_id].toUpperCase().includes(input))
+  );
+
+  if (matches.length > 0) {
+    matches.slice(0, 50).forEach(match => {
+      const siteId = match[columnMap.site_id] || "";
+      const cellId = match[columnMap.cell_id] || "";
+      const siteName = match[columnMap.site_name] || "";
+
+      const item = document.createElement("div");
+      item.style.padding = "4px 8px";
+      item.style.cursor = "pointer";
+      item.style.borderBottom = "1px solid #eee";
+      item.style.fontSize = "13px";
+      item.innerHTML = `<b>${siteId}</b> | ${cellId} | ${siteName}`;
+
+      item.addEventListener("click", () => {
+        highlightMatch(match);
+        suggestionBox.style.display = "none";
+      });
+
+      suggestionBox.appendChild(item);
+    });
+
+    const inputBox = document.getElementById("searchInput");
+    const inputRect = inputBox.getBoundingClientRect();
+    suggestionBox.style.left = inputRect.left + "px";
+    suggestionBox.style.top = (inputRect.bottom + window.scrollY + 10) + "px";
+    suggestionBox.style.width = inputRect.width + "px";
+    suggestionBox.style.backgroundColor = "rgba(255, 255, 255, 0.8)"; // <- add this
+    suggestionBox.style.backdropFilter = "blur(4px)"; // optional for glass effect
+    suggestionBox.style.display = "block";
+  }
+}
+
+document.addEventListener("keydown", function (e) {
+  if (e.ctrlKey && e.code === 'Space') {
+    e.preventDefault(); // prevent default browser behavior (e.g., bookmarking)
+    const searchInput = document.getElementById("searchInput");
+    if (searchInput) {
+      searchInput.focus();
+      searchInput.select(); // optional: select current text so user can overwrite
+    }
+  }
+});
+
+  //-------------------------search button ends------------------------------------
+
+  document.getElementById("applyFilter").addEventListener("click", () => {
+    const filterRows = document.querySelectorAll("#multiFilterContainer .filter-row");
+    const filters = [];
+
+    filterRows.forEach(row => {
+      const col = row.querySelector(".filter-column")?.value;
+      const selected = Array.from(row.querySelector(".filter-values")?.selectedOptions || []).map(o => o.value.trim());
+      const operator = row.querySelector(".filter-operator")?.value || "equals";
+      const ignoreEmpty = row.querySelector(".filter-ignore-empty")?.checked;
+      const ignoreZero = row.querySelector(".filter-ignore-zero")?.checked;
+
+      if (col && (selected.length > 0 || ignoreEmpty || ignoreZero)) {
+        filters.push({ col, selectedSetArray: selected, operator, ignoreEmpty, ignoreZero }); // ✅ Save as array
+      }
+    });
+
+    if (filters.length === 0) {
+      alert("Please define at least one filter criteria — either by selecting values or enabling ignore rules.");
+      return;
+    }
+
+    // ✅ Store in localStorage
+    localStorage.setItem("savedFilters", JSON.stringify(filters));
+
+    // ✅ Apply filter logic
+    sectorData.forEach(row => {
+      row.__filtered__ = false;
+
+      for (const { col, selectedSetArray, operator, ignoreEmpty, ignoreZero } of filters) {
+        const selectedSet = new Set(selectedSetArray);  // ✅ Convert array to Set each time
+
+        const rawVal = row[col];
+        const val = (rawVal || "").trim();
+        const isEmpty = val === "";
+        const isZero = parseFloat(val) === 0;
+
+        if (selectedSet.size === 0 && (ignoreEmpty || ignoreZero)) {
+          if ((ignoreEmpty && isEmpty) || (ignoreZero && isZero)) {
+            row.__filtered__ = true;
+            break;
+          }
+          continue;
+        }
+
+        const match = selectedSet.has(val);
+        const passed = operator === "equals" ? match : !match;
+
+        if ((ignoreEmpty && isEmpty) || (ignoreZero && isZero)) {
+          row.__filtered__ = true;
+          break;
+        }
+
+        if (!passed) {
+          row.__filtered__ = true;
+          break;
+        }
+      }
+    });
+
+    redrawSectors();
+    drawSiteMarkers();
+    if (labelsVisible) {
+      drawLabels();
+    }
+  });
+
+
+    document.getElementById("clearFilter").addEventListener("click", () => {
+      localStorage.removeItem("savedFilters");
+      sectorData.forEach(row => delete row.__filtered__);
+      redrawSectors(); drawSiteMarkers();
+      if (labelsVisible) {
+      drawLabels();
+    }
+    });
+
+  let mapEventTimer;
+  map.on("moveend zoomend", () => {
+    clearTimeout(mapEventTimer);
+    mapEventTimer = setTimeout(() => {
+      // Your existing redraw logic
+      if (showCells) redrawSectors();
+      drawSiteMarkers();
+      if (labelsVisible) {
+        drawLabels();
+      }
+
+      // ✅ Save to localStorage
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+      localStorage.setItem("lastMapCenter", JSON.stringify([center.lat, center.lng]));
+      localStorage.setItem("lastMapZoom", zoom);
+
+      //console.log("Zoom level:", zoom);
+
+    }, 1000);  // delay to avoid too frequent updates
+  });
+
+  
+  const bottomControlsContainer = document.getElementById('bottomControlsContainer');
+const toggleBottomBtn = document.getElementById('toggleBottomControls');
+
+toggleBottomBtn.addEventListener('click', () => {
+  if (bottomControlsContainer.classList.contains('collapsed')) {
+    bottomControlsContainer.classList.remove('collapsed');
+    toggleBottomBtn.textContent = '▼ Hide';
+    toggleBottomBtn.classList.add("active-toggle", "hide-mode"); // ✅ highlight for hide
+    document.getElementById('map').style.height = '85vh';
+  } else {
+    bottomControlsContainer.classList.add('collapsed');
+    toggleBottomBtn.textContent = '▲ ⚙️ Settings';
+    toggleBottomBtn.classList.remove("active-toggle", "hide-mode"); // ✅ revert color
+    document.getElementById('map').style.height = '95vh';
+  }
+});
+
+
+document.getElementById("toggleDots").addEventListener("change", function() {
+  showDots = this.checked;
+  localStorage.setItem("geojsonToggleDots", showDots); // ✅ Save state
+
+  if (showDots) {
+    drawSiteMarkers();
+  } else {
+    if (markerGroup) {
+      map.removeLayer(markerGroup);
+      markerGroup = null;
+    }
+    markers = [];
+  }
+});
+
+document.getElementById("toggleCells").addEventListener("change", function() {
+  showCells = this.checked;
+  localStorage.setItem("geojsonToggleCells", showCells); // ✅ Save state
+
+  if (showCells) {
+    if (sectorGroup) map.addLayer(sectorGroup);
+  } else {
+    if (sectorGroup) map.removeLayer(sectorGroup);
+  }
+});
+
+document.getElementById('selectInsidePolygonBtn').addEventListener('click', () => {
+  if (polygonLayers.length === 0) {
+    alert("No polygon drawn.");
+    return;
+  }
+
+if (polygonLayers.length === 0) {
+  alert("No polygon drawn.");
+  return;
+}
+
+const insideSectors = sectorData.filter(row => {
+  if (!row[columnMap.latitude] || !row[columnMap.longitude]) return false;
+
+  const pt = L.latLng(parseFloat(row[columnMap.latitude]), parseFloat(row[columnMap.longitude]));
+
+  // Skip if this cell is not currently visible (filtered out)
+  const cellId = row[columnMap.cell_id];
+  const polygon = window.cellPolygonMap?.[cellId];
+  if (!polygon || !map.hasLayer(polygon)) return false;
+
+  // ✅ New: check if point is inside ANY drawn polygon
+  return polygonLayers.some(polygon => pointInPolygon(pt, polygon));
+});
+
+
+
+  if (insideSectors.length === 0) {
+    alert("No sector/cell found inside polygon.");
+    return;
+  }
+
+  // Prepare CSV-like text for copying
+  const columns = Object.keys(sectorData[0]);
+  let text = columns.join('\t') + '\n'; // tab separated
+
+  insideSectors.forEach(row => {
+    const line = columns.map(col => row[col]).join('\t');
+    text += line + '\n';
+  });
+
+  // Show in prompt or textarea to copy
+  // Export to CSV and prompt to save
+const csvText = columns.join(',') + '\n' + insideSectors.map(row => {
+  return columns.map(col => `"${(row[col] || '').toString().replace(/"/g, '""')}"`).join(',');
+}).join('\n');
+
+// Add UTF-8 BOM to ensure proper encoding of Traditional Chinese in Excel
+const utf8BOM = "\uFEFF";
+const blob = new Blob([utf8BOM + csvText], { type: 'text/csv;charset=utf-8;' });
+const url = URL.createObjectURL(blob);
+
+const a = document.createElement('a');
+a.href = url;
+
+// Prompt user with suggested filename
+const filename = prompt("Enter a filename for the CSV export:", "selected_cells.csv");
+if (!filename) return; // User cancelled
+
+a.download = filename.endsWith('.csv') ? filename : filename + '.csv';
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+URL.revokeObjectURL(url);
+
+});
+
+document.getElementById('clearPolylineBtn').onclick = function() {
+  if (drawnPolyline) {
+    map.removeLayer(drawnPolyline);
+    drawnPolyline = null;
+  }
+  
+polygonLayers.forEach(polygon => {
+  map.removeLayer(polygon);
+});
+polygonLayers = [];  // Clear the array
+
+
+  drawnPoints = [];
+  document.getElementById('selectInsidePolygonBtn').disabled = true;
+
+  // Remove all circle markers used for drawing points
+  map.eachLayer(function(layer) {
+    if (layer instanceof L.CircleMarker) {
+      map.removeLayer(layer);
+    }
+  });
+};
+
+//let polygonLayer = null;
+
+	document.getElementById('startDrawingBtn').onclick = function () {
+  if (drawing) {
+    // Stop drawing — close polygon automatically by adding first point at the end
+    drawing = false;
+    hideCursorLabel();
+    this.textContent = "Start Drawing Polyline";
+    document.getElementById('map').style.cursor = '';
+
+    // Remove guideline
+    map.off("mousemove", drawGuideline);
+    removeGuideline();
+
+    if (drawnPoints.length > 2) {
+      drawnPoints.push(drawnPoints[0]); // close by repeating first point
+
+      if (drawnPolyline) {
+        map.removeLayer(drawnPolyline);
+        drawnPolyline = null;
+      }
+
+
+      if (!map.editTools) {
+    map.editTools = new L.Editable(map);
+  }
+
+const newPolygon = L.polygon(drawnPoints, {
+  color: 'red',
+  weight: 3,
+  opacity: 0.8,
+  fillOpacity: 0.2,
+  fillColor: 'red'
+});
+
+newPolygon.addTo(map);
+attachPolygonClickToSelect(newPolygon);
+
+newPolygon.enableEdit();
+
+
+// ✅ Store it in the array
+polygonLayers.push(newPolygon);
+
+
+      document.getElementById('selectInsidePolygonBtn').disabled = false;
+      window._activePolygon = null;
+    } else {
+      alert("Need at least 3 points to form a polygon.");
+    }
+  } else {
+    // Start drawing
+    drawing = true;
+    showCursorLabel('Polygon');
+    this.textContent = "Stop Drawing";
+    document.getElementById('map').style.cursor = 'crosshair';
+
+    // ❌ Do NOT remove previous polygons or clear the array
+drawnPoints = [];
+document.getElementById('selectInsidePolygonBtn').disabled = polygonLayers.length === 0;
+
+
+    // ✅ Start listening to mousemove for guideline
+    map.on("mousemove", drawGuideline);
+  }
+};
+
+
+map.on("click", function (e) {
+    //console.log("placingRouteMarkers =", placingRouteMarkers); // 👈 Logs the value each click
+  const clickedPoint = e.latlng;
+  const results = [];
+
+  map.eachLayer(layer => {
+    if (layer instanceof L.Polygon && pointInPolygon(clickedPoint, layer)) {
+      const popupContent = layer.getPopup()?.getContent();
+      if (popupContent) results.push(popupContent);
+    }
+  });
+
+  if (results.length > 0) {
+    L.popup()
+      .setLatLng(clickedPoint)
+      .setContent(results.join("<hr style='margin: 6px 0;'>"))
+      .openOn(map);
+  }
+});
+
+layerStepSlider.addEventListener("input", (e) => {
+  layerStepPercentage = parseInt(e.target.value);
+  document.getElementById("layerStepValue").textContent = `${layerStepPercentage}%`;
+  localStorage.setItem("layerStepPercentage", layerStepPercentage);
+  throttleRedrawsec();
+});
+
+sectorLayerStepSlider.addEventListener("input", (e) => {
+  sectorLayerStepPercentage = parseInt(e.target.value);
+  document.getElementById("sectorLayerStepValue").textContent = `${sectorLayerStepPercentage}%`;
+  localStorage.setItem("sectorLayerStepPercentage", sectorLayerStepPercentage);
+  throttleRedrawsec();
+});
+
+document.getElementById("startRouteDrawingBtn").onclick = function() {
+   // 🛑 First, disable all active Leaflet.pm modes
+ 
+  
+  console.log("🟢 Start Route button clicked");
+  deactivateAllLeafletPMModes();
+
+  routeDrawingActive = !routeDrawingActive;
+  this.textContent = routeDrawingActive ? "Stop Draw" : "Start Draw";
+  map.getContainer().style.cursor = routeDrawingActive ? 'crosshair' : '';
+
+  // ✅ Show the tip ONLY when starting route drawing
+  if (routeDrawingActive) {
+    showCursorLabel("Draw");
+    showMessage(
+      'To delete selected route, click on the route and press <span style="color:red; font-weight:bold;">Delete</span>.',
+      6000
+    );
+  } else {
+    hideCursorLabel();
+  }
+
+  if (!routeDrawingActive) {
+  // 🗑️ Remove the unfinished active route if it exists
+  if (activeRoutePolyline) {
+    map.removeLayer(activeRoutePolyline);
+    activeRoutePolyline = null;
+  }
+
+  // ✅ Clean up trailing dotted line and cursor-following line
+  if (trailingRouteLine) {
+    map.removeLayer(trailingRouteLine);
+    trailingRouteLine = null;
+  }
+
+  if (activeRouteCursorLine) {
+    map.removeLayer(activeRouteCursorLine);
+    activeRouteCursorLine = null;
+  }
+
+  activeRoutePoints = [];
+  
+  updateRouteStats();   // update total route count or length
+  updateRouteStatus();  // 🟢 update message text appropriately
+}
+
+};
+const activeRouteColor = "#FF00FF";  // magenta or any color you prefer
+map.on("click", function(e) {
+  if (!routeDrawingActive) return;
+
+   if (skipNextMapClick) {
+    skipNextMapClick = false;
+    return;
+  }
+
+  activeRoutePoints.push(e.latlng);
+
+ if (activeRoutePolyline) {
+  activeRoutePolyline.addLatLng(e.latlng);
+} else {
+  const selectedColor = routeColorPicker.value;
+  const selectedWeight = parseFloat(routeThicknessInput.value);
+
+  activeRoutePolyline = L.polyline([e.latlng], {
+    color: activeRouteColor,
+    weight: selectedWeight,
+    opacity: 1
+  }).addTo(map);
+
+  activeRoutePolyline.options.routeId = routePolylines.length + 1;
+  activeRoutePolyline.options.routeColor = selectedColor;
+  activeRoutePolyline.options.routeWeight = selectedWeight;
+
+  activeRoutePolyline.on("click", function (e) {
+  // If this is already the selected polyline, unselect it
+  if (selectedRoutePolyline === this) {
+    this.setStyle({
+      color: this.options.routeColor,
+      weight: this.options.routeWeight,
+      opacity: 1
+    });
+    selectedRoutePolyline = null;
+  } else {
+    // Unselect any previously selected polyline
+    if (selectedRoutePolyline) {
+      selectedRoutePolyline.setStyle({
+        color: selectedRoutePolyline.options.routeColor,
+        weight: selectedRoutePolyline.options.routeWeight,
+        opacity: 1
+      });
+    }
+
+    // Select this one
+    selectedRoutePolyline = this;
+    this.setStyle({
+      color: "red",
+      weight: this.options.routeWeight + 3
+    });
+  }
+
+  skipNextMapClick = true;
+  e.originalEvent.stopPropagation();
+});
+
+}
+
+
+  updateRouteStats();
+  updateRouteStatus();
+});
+
+document.getElementById("clearRoutesBtn").onclick = function () {
+ let active = layers.find(l => l.controlId === activeLayerId);
+
+// Fallback: allow clearing from routePolylines if no active layer
+if ((!active || !(active.layer instanceof L.FeatureGroup)) && routePolylines.length > 0) {
+  routePolylines.forEach(poly => {
+    if (map.hasLayer(poly)) map.removeLayer(poly);
+  });
+  routePolylines = [];
+  //alert("🗑️ Cleared all unsaved routes from map (no active GeoJSON layer).");
+  return;
+}
+
+if (!active || !(active.layer instanceof L.FeatureGroup)) return;
+
+  let clearedCount = 0;
+  active.layer.eachLayer(layer => {
+    if (layer instanceof L.Polyline && layer.options._isTemporaryRoute) {
+      active.layer.removeLayer(layer);
+      clearedCount++;
+    }
+  });
+
+  // Clean up drawing state
+  if (activeRoutePolyline) {
+    map.removeLayer(activeRoutePolyline);
+    activeRoutePolyline = null;
+  }
+
+  if (trailingRouteLine) {
+    map.removeLayer(trailingRouteLine);
+    trailingRouteLine = null;
+  }
+
+  activeRoutePoints = [];
+  totalDistanceKm = 0;
+  map.getContainer().style.cursor = '';
+
+  updateRouteStats();
+  updateRouteStatus();
+
+  alert(`🗑️ Cleared ${clearedCount} unsaved route(s).`);
+};
+
+document.getElementById("exportRoutesGeoJSONBtn").onclick = exportRoutesToGeoJSON;
+
+document.getElementById("deleteLastRouteBtn").onclick = function () {
+  let active = layers.find(l => l.controlId === activeLayerId);
+
+  // Fallback: if no active layer, remove from global routePolylines
+  if ((!active || !(active.layer instanceof L.FeatureGroup)) && routePolylines.length > 0) {
+    const last = routePolylines.pop();
+    if (map.hasLayer(last)) map.removeLayer(last);
+    //alert("🗑️ Deleted last unsaved route (no active GeoJSON layer).");
+    updateRouteStats();
+    updateRouteStatus();
+    return;
+  }
+
+  if (!active || !(active.layer instanceof L.FeatureGroup)) return;
+
+  // Original behavior
+  const tempRoutes = [];
+  active.layer.eachLayer(layer => {
+    if (layer instanceof L.Polyline && layer.options._isTemporaryRoute) {
+      tempRoutes.push(layer);
+    }
+  });
+
+  if (tempRoutes.length === 0) {
+    alert("No temporary routes to delete.");
+    return;
+  }
+
+  const lastRoute = tempRoutes[tempRoutes.length - 1];
+  active.layer.removeLayer(lastRoute);
+  updateRouteStats();
+  updateRouteStatus();
+};
+
+document.getElementById("deleteSelectedRouteBtn").onclick = function () {
+  if (!selectedRoutePolyline) {
+    alert("No route selected. Click on a route first.");
+    return;
+  }
+
+  let active = layers.find(l => l.controlId === activeLayerId);
+
+  // Fallback: allow deletion if selected route is on map and temporary
+  if ((!active || !(active.layer instanceof L.FeatureGroup)) &&
+      selectedRoutePolyline.options._isTemporaryRoute) {
+    if (map.hasLayer(selectedRoutePolyline)) {
+      map.removeLayer(selectedRoutePolyline);
+      selectedRoutePolyline = null;
+      trailingRouteLine = null;
+      updateRouteStats();
+      updateRouteStatus();
+      alert("🗑️ Deleted selected temporary route (no active GeoJSON layer).");
+    }
+    return;
+  }
+
+  if (!active || !(active.layer instanceof L.FeatureGroup)) return;
+
+  if (!selectedRoutePolyline.options._isTemporaryRoute) {
+    alert("This route was previously imported/exported and cannot be deleted here.");
+    return;
+  }
+
+  // Remove selected from active layer
+  active.layer.removeLayer(selectedRoutePolyline);
+
+  // Cleanup
+  if (trailingRouteLine) {
+    map.removeLayer(trailingRouteLine);
+    trailingRouteLine = null;
+  }
+
+  selectedRoutePolyline = null;
+  updateRouteStats();
+  updateRouteStatus();
+};
+
+
+document.getElementById("clearSearchButton").addEventListener("click", () => {
+   // Only remove red highlight markers
+  searchHighlightMarkers.forEach(m => map.removeLayer(m));
+  searchHighlightMarkers = [];
+
+  // Clear the search box
+  document.getElementById("searchInput").value = "";
+  document.getElementById("clearSearchButton").style.display = "none"; // ✅ hide the button
+});
+
+const legendToggle = document.getElementById("legendToggle");
+const layerLegend = document.getElementById("layerLegend");
+
+legendToggle.addEventListener("click", () => {
+  layerLegend.classList.toggle("collapsed");
+  legendToggle.textContent = layerLegend.classList.contains("collapsed") ? "▶️ Legend" : "📑 Legend";
+});
+
+const rangeClassMap = {}; // { columnName: [ {min, max, color}, ... ] }
+
+// Restore saved rangeClassMap from localStorage
+const savedRanges = localStorage.getItem("thematicRanges");
+if (savedRanges) {
+  try {
+    Object.assign(rangeClassMap, JSON.parse(savedRanges));
+  } catch (e) {
+    console.warn("Invalid saved range data:", e);
+  }
+}
+
+
+document.getElementById("applyThematic").addEventListener("click", () => {
+  const col = document.getElementById("thematicColumnSelect").value;
+  const mode = document.getElementById("thematicMode").value;
+  const scaleChoice = document.getElementById("thematicColorScale").value;
+  thematicColumn = col;
+  thematicMode = mode;
+
+  if (!col) {
+    alert("Please select a column.");
+    return;
+  }
+
+if (mode === "categorical") {
+  const uniqueVals = new Set();
+  sectorData.forEach(row => {
+    const v = row[col];
+    if (v) uniqueVals.add(v.trim());
+  });
+
+  const vals = [...uniqueVals].sort();
+  categoryColorMap = {};
+
+  const catColors = generateDistinctHSLColors(vals.length, 70, 50);
+  shuffleArray(catColors);
+
+  vals.forEach((v, i) => {
+    categoryColorMap[v] = catColors[i];
+  });
+
+  // Get references to legend containers
+  const thematicLegend = document.getElementById("thematicLegend");
+  const categoricalLegend = document.getElementById("categoricalLegend");
+  const continuousLegend = document.getElementById("continuousLegend");
+
+  // Fill the categorical legend section
+  categoricalLegend.innerHTML =
+    "<strong>Thematic Categories:</strong><ul style='list-style: none; padding: 0;'>"
+    + vals.map((v, i) =>
+      `<li><span style="display:inline-block; width:12px; height:12px; background:${catColors[i]}; margin-right:6px;"></span>${v}</li>`
+    ).join("") + "</ul>";
+
+  // Show/hide the correct legend sections
+  thematicLegend.style.display = "block";
+  categoricalLegend.style.display = "block";
+  continuousLegend.style.display = "none";
+  rangeLegend.style.display = "none";
+
+  // Clear previous thematic styles
+sectorGroup.eachLayer(layer => {
+  layer.setStyle({ fillColor: "#ccc", fillOpacity: 0.5, color: "#333", weight: 1 });
+});
+
+
+  redrawSectors();
+  return;
+}document.getElementById("thematicMode").addEventListener("change", maybeRestoreRangeUI);
+
+
+ if (mode === "range") {
+  thematicClassRanges = [];
+const ranges = [];
+document.querySelectorAll("#classRangeList .class-range-row").forEach(row => {
+  const min = parseFloat(row.querySelector(".range-min").value);
+  const max = parseFloat(row.querySelector(".range-max").value);
+  const color = row.querySelector(".range-color").value;
+  if (isFinite(min) && isFinite(max) && color) {
+    const range = { min, max, color };
+    ranges.push(range);
+    thematicClassRanges.push(range);
+  }
+});
+
+// Save to memory
+rangeClassMap[col] = ranges;
+// Save to localStorage
+localStorage.setItem("thematicRanges", JSON.stringify(rangeClassMap));
+
+
+  // Render range legend
+  const rangeLegend = document.getElementById("rangeLegend");
+  const continuousLegend = document.getElementById("continuousLegend");
+  const categoricalLegend = document.getElementById("categoricalLegend");
+  const thematicLegend = document.getElementById("thematicLegend");
+
+  rangeLegend.innerHTML = "<strong>Range Classes:</strong><ul style='list-style:none; padding:0;'>";
+  thematicClassRanges.forEach(r => {
+    rangeLegend.innerHTML += `<li><span style="display:inline-block; width:12px; height:12px; background:${r.color}; margin-right:6px;"></span>${r.min} - ${r.max}</li>`;
+  });
+  rangeLegend.innerHTML += "</ul>";
+
+  rangeLegend.style.display = "block";
+  continuousLegend.style.display = "none";
+  categoricalLegend.style.display = "none";
+  thematicLegend.style.display = "block";
+// Clear previous thematic styles
+sectorGroup.eachLayer(layer => {
+  layer.setStyle({ fillColor: "#ccc", fillOpacity: 0.5, color: "#333", weight: 1 });
+});
+
+  redrawSectors();
+  return;
+}
+
+
+  if (mode === "continuous") {
+  const minInput = parseFloat(document.getElementById("thematicMinInput").value);
+  const maxInput = parseFloat(document.getElementById("thematicMaxInput").value);
+
+  let values = sectorData
+    .map(row => parseFloat((row[col] || "").toString().replace(/[^\d.-]/g, "")))
+    .filter(v => !isNaN(v));
+
+  let min = isFinite(minInput) ? minInput : Math.min(...values);
+  let max = isFinite(maxInput) ? maxInput : Math.max(...values);
+
+  if (!isFinite(min) || !isFinite(max) || min === max) {
+    alert("Cannot determine valid min/max values.");
+    thematicColumn = null;
+    return;
+  }
+
+  thematicRange = [min, max];
+
+  switch (scaleChoice) {
+    case "blue-red":
+      thematicColorScale = chroma.scale(['blue', 'red']).mode('lab');
+      break;
+    case "green-yellow-red":
+      thematicColorScale = chroma.scale(['green', 'yellow', 'red']).mode('lab');
+      break;
+    case "blue-green-yellow-red":
+      thematicColorScale = chroma.scale(['blue', 'green', 'yellow', 'red']).mode('lab');
+      break;
+    case "purple-orange":
+      thematicColorScale = chroma.scale(['purple', 'orange']).mode('lab');
+      break;
+    case "viridis":
+      thematicColorScale = chroma.scale('viridis');
+      break;
+    case "turbo":
+      thematicColorScale = chroma.scale([
+        '#30123b', '#4148ad', '#4681e3', '#40b5cd',
+        '#6cd95c', '#c4e24a', '#ffe02a', '#f9a825',
+        '#eb5b2c', '#b11226'
+      ]).mode('lab');
+      break;
+    default:
+      thematicColorScale = chroma.scale(['blue', 'red']).mode('lab');
+  }
+
+  // Update legend display
+  const minEl = document.getElementById("thematicMin");
+  const maxEl = document.getElementById("thematicMax");
+  const gradientBar = document.getElementById("thematicGradientBar");
+
+  const continuousLegend = document.getElementById("continuousLegend");
+  const rangeLegend = document.getElementById("rangeLegend");
+  const categoricalLegend = document.getElementById("categoricalLegend");
+  const thematicLegend = document.getElementById("thematicLegend");
+
+  const gradient = `linear-gradient(to right, ${thematicColorScale.colors(10).join(",")})`;
+  gradientBar.style.background = gradient;
+  minEl.textContent = min.toFixed(1);
+  maxEl.textContent = max.toFixed(1);
+
+  continuousLegend.style.display = "block";
+  categoricalLegend.style.display = "none";
+  rangeLegend.style.display = "none";
+  thematicLegend.style.display = "block";
+
+  thematicClassRanges = [];
+  // Clear previous thematic styles
+sectorGroup.eachLayer(layer => {
+  layer.setStyle({ fillColor: "#ccc", fillOpacity: 0.5, color: "#333", weight: 1 });
+});
+
+  redrawSectors();
+  return;
+}
+
+});
+
+document.getElementById("clearThematic").addEventListener("click", () => {
+  thematicColumn = null;
+  document.getElementById("thematicLegend").style.display = "none";
+  // Clear previous thematic styles
+sectorGroup.eachLayer(layer => {
+  layer.setStyle({ fillColor: "#ccc", fillOpacity: 0.5, color: "#333", weight: 1 });
+});
+
+redrawSectors();
+});
+
+document.getElementById("thematicMode").addEventListener("change", (e) => {
+  thematicMode = e.target.value;
+});
+
+document.getElementById("addRangeButton").addEventListener("click", () => {
+  const container = document.createElement("div");
+  container.classList.add("class-range-row");
+  container.style.display = "flex";
+  container.style.gap = "0.5rem";
+  container.innerHTML = `
+    <input type="number" class="range-min" placeholder=">=" style="width: 80px;">
+    <input type="number" class="range-max" placeholder="<" style="width: 80px;">
+    <input type="color" class="range-color" value="#cccccc" style="width: 40px;">
+    <button class="remove-range" type="button">✖</button>
+  `;
+  document.getElementById("classRangeList").appendChild(container);
+
+  container.querySelector(".remove-range").addEventListener("click", () => {
+    container.remove();
+  });
+});
+
+document.getElementById("thematicMode").addEventListener("change", function () {
+  const mode = this.value;
+
+  const minLabel = document.getElementById("thematicMinInput")?.closest("label");
+  const maxLabel = document.getElementById("thematicMaxInput")?.closest("label");
+  const colorScaleLabel = document.getElementById("thematicColorScale")?.closest("label");
+  const classRangeBlock = document.getElementById("addRangeButton")?.closest("div");
+
+  if (mode === "categorical") {
+    if (minLabel) minLabel.style.display = "none";
+    if (maxLabel) maxLabel.style.display = "none";
+    if (colorScaleLabel) colorScaleLabel.style.display = "none";
+    if (classRangeBlock) classRangeBlock.style.display = "none";
+  } else if (mode === "continuous") {
+    if (minLabel) minLabel.style.display = "";
+    if (maxLabel) maxLabel.style.display = "";
+    if (colorScaleLabel) colorScaleLabel.style.display = "";
+    if (classRangeBlock) classRangeBlock.style.display = "none";
+  } else if (mode === "range") {
+    if (minLabel) minLabel.style.display = "none";
+    if (maxLabel) maxLabel.style.display = "none";
+    if (colorScaleLabel) colorScaleLabel.style.display = "none";
+    if (classRangeBlock) classRangeBlock.style.display = "";
+  }
+});
+
+// Initial trigger
+document.getElementById("thematicMode").dispatchEvent(new Event("change"));
+document.getElementById("thematicMode").addEventListener("change", maybeRestoreRangeUI);
+document.getElementById("thematicColumnSelect").addEventListener("change", maybeRestoreRangeUI);
+
+
+
+document.getElementById("exportSelectedPolygonsBtn").onclick = function () {
+  if (selectedPolygons.size === 0) {
+    alert("No selected cells to export.");
+    return;
+  }
+
+  // Prompt for filename
+  const fileName = prompt("Enter a file name for your export (without extension):", "selected_cells");
+  if (fileName === null) return;  // User cancelled prompt
+
+  // Collect selected rows
+  const rows = [];
+  selectedPolygons.forEach(polygon => {
+    const row = polygonToRowMap.get(polygon);
+    if (row) rows.push(row);
+  });
+
+  if (rows.length === 0) {
+    alert("No data found for selected cells.");
+    return;
+  }
+
+  // Build CSV content
+  const headers = Object.keys(rows[0]);
+  const csvContent = [
+    headers.join(","),  // header row
+    ...rows.map(r => headers.map(h => `"${(r[h] || "").toString().replace(/"/g, '""')}"`).join(","))
+  ].join("\n");
+
+  // ✅ Add UTF-8 BOM so Excel, Notepad, etc. read Chinese characters correctly
+  const utf8Bom = "\uFEFF";
+  const blob = new Blob([utf8Bom + csvContent], { type: "text/csv;charset=utf-8;" });
+
+  // Trigger download
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `${fileName}.csv`;
+  link.click();
+};
+
+
+
+document.getElementById("clearSelectedPolygonsBtn").addEventListener("click", () => {
+  // Clear visual style of currently visible polygons
+  sectorGroup.eachLayer(layer => {
+    if (layer instanceof L.Polygon && polygonToRowMap.has(layer)) {
+      layer.setStyle({
+        weight: layer.options.originalWeight || 1,
+        color: layer.options.originalColor,
+        fillColor: layer.options.originalColor,
+        fillOpacity: currentOpacity
+      });
+    }
+  });
+
+  // Clear selection sets
+  selectedPolygons.clear();
+  selectedCellIds.clear();
+});
+
+document.getElementById("toggleClickSelectBtn").addEventListener("click", function () {
+  clickSelectEnabled = !clickSelectEnabled;
+  this.textContent = clickSelectEnabled ? "🟢 Click Select: ON" : "🔘 Enable Click Select";
+  this.classList.toggle("active-toggle", clickSelectEnabled);
+
+  if (clickSelectEnabled) {
+    map.getContainer().style.cursor = "pointer";
+    showCursorLabel("Select");
+  } else {
+    map.getContainer().style.cursor = "";
+    hideCursorLabel();
+  }
+});
+
+//==========================neighbor file import==============================================
+const fileInput = document.getElementById('neighborFileInput');
+const fileButton = document.getElementById('customFileButton');
+const neighborfileNameDisplay = document.getElementById('neighborFileNameDisplay');
+
+fileButton.addEventListener('click', () => {
+  fileInput.click(); // Open file dialog
+});
+
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    neighborfileNameDisplay.textContent = file.name;
+    loadNeighborList(file);
+    showMessage(
+      "To see neighbor, please A key+click on source cell to see intra frequency neighbor or Z key for inter frequency neighbor",
+      6000
+    );
+
+    // ✅ Only clear file input if a file was selected
+    setTimeout(() => {
+      fileInput.value = "";
+    }, 0);
+  }
+});
+
+
+
+//=====================================================================================
+//paste back code if needed
+//===============================================================================
+window._secHandler = function (results) {
+  sectorData.length = 0;
+  localStorage.removeItem("customLabelPositions");
+
+  columnMap = {};
+  const rawHeaders = Object.keys(results[0]);
+  if (!validateCSVHeaders(rawHeaders)) return;
+
+  const headerMap = {};
+  rawHeaders.forEach(h => {
+    headerMap[h.trim().toLowerCase()] = h;
+  });
+
+  for (const [std, aliases] of Object.entries(window.expectedHeaders)) {
+    for (const alias of aliases) {
+      const found = headerMap[alias.toLowerCase()];
+      if (found) {
+        columnMap[std] = found;
+        break;
+      }
+    }
+  }
+
+  console.log("Mapped columns:", columnMap);
+
+  results.forEach(row => {
+    const lat = row[columnMap.latitude];
+    const lng = row[columnMap.longitude];
+    const az = row[columnMap.azimuth];
+    const bw = row[columnMap.beamwidth];
+    if (lat && lng && az) {
+      sectorData.push(row);
+    }
+  });
+
+  // ✅ Restore manually dragged label positions
+//const savedCustomLabels = JSON.parse(localStorage.getItem("customLabelPositions") || "[]");
+
+//savedCustomLabels.forEach(saved => {
+//  const match = sectorData.find(r => r[columnMap.site_id] === saved.site_id);
+//  if (match) {
+//    match.customLabelLat = saved.lat;
+//    match.customLabelLng = saved.lng;
+//  }
+//});
+
+
+  // 🧠 Smart SetView based on new file vs current view
+if (sectorData.length > 0) {
+  const firstLat = parseFloat(sectorData[0][columnMap.latitude]);
+  const firstLng = parseFloat(sectorData[0][columnMap.longitude]);
+
+  if (!map.getBounds().contains([firstLat, firstLng])) {
+    console.log("📍 First row is outside current map view. Re-centering.");
+    map.setView([firstLat, firstLng], 15);
+  } else {
+    console.log("✅ First row within current view. Keeping saved position.");
+  }
+}
+
+window.originalSectorColumns = Object.keys(sectorData[0]);
+const layerKeySelect = document.getElementById("layerKeySelect");
+layerKeySelect.innerHTML = "";
+
+// Repopulate dropdown
+window.originalSectorColumns.forEach(col => {
+  const opt = document.createElement("option");
+  opt.value = col;
+  opt.textContent = col;
+  layerKeySelect.appendChild(opt);
+});
+
+// Try restoring from localStorage
+const savedLayerKeys = JSON.parse(localStorage.getItem("savedLayerKeyColumns") || "[]");
+const availableCols = window.originalSectorColumns;
+const validKeys = savedLayerKeys.filter(key => availableCols.includes(key));
+
+if (validKeys.length) {
+  // Restore valid saved keys
+  for (const opt of layerKeySelect.options) {
+    opt.selected = validKeys.includes(opt.value);
+  }
+  console.log("✅ Restored layer key selection:", validKeys);
+} else {
+  // Fallback to multilayer
+  const fallback = columnMap.multilayer;
+  if (fallback && availableCols.includes(fallback)) {
+    for (const opt of layerKeySelect.options) {
+      opt.selected = (opt.value === fallback);
+    }
+    console.warn("⚠️ Restored keys missing. Fallback to:", fallback);
+  } else {
+    console.error("❌ No usable layering column found. Fallback failed.");
+  }
+}
+
+// Always call to apply current selection
+chooseLayerKeyColumns();
+
+  // ✅ Populate label column dropdown
+const labelSelect = document.getElementById("labelColumnSelect");
+labelSelect.innerHTML = '<option value="">Select Label Column</option>';
+window.originalSectorColumns.forEach(col => {
+  const opt = document.createElement("option");
+  opt.value = col;
+  opt.textContent = col;
+  labelSelect.appendChild(opt);
+});
+
+
+  layerKeySelect.addEventListener("change", () => {
+
+    const selected = Array.from(layerKeySelect.selectedOptions).map(opt => opt.value.trim());
+    localStorage.setItem("savedLayerKeyColumns", JSON.stringify(selected)); // ✅ Save to localStorage
+
+    chooseLayerKeyColumns();
+    redrawSectors();
+  });
+
+  //set map position to the lat/long of first valid value from input file
+ // if (sectorData.length) {
+ //   const lat = parseFloat(sectorData[0][columnMap.latitude]);
+ //   const lng = parseFloat(sectorData[0][columnMap.longitude]);
+ //   map.setView([lat, lng], 15);
+ // }
+
+  redrawSectors();
+  drawSiteMarkers();
+
+  const codeTypeSelect = document.getElementById("codeTypeSelect");
+  populateFilterColumns();
+  document.querySelector(".filter-column").addEventListener("change", handleColumnChange);
+
+  const indoorColumnSelect = document.getElementById("indoorColumnSelect");
+  const indoorValueSelect = document.getElementById("indoorValueSelect");
+
+  indoorColumnSelect.innerHTML = '<option value="">-- Select Column --</option>';
+  const firstRow = sectorData[0];
+  Object.keys(firstRow).forEach(col => {
+    const opt = document.createElement("option");
+    opt.value = col;
+    opt.textContent = col;
+    indoorColumnSelect.appendChild(opt);
+  });
+
+  //======restore indoor selection criteria from layer control
+  const savedIndoorColumn = localStorage.getItem("savedIndoorColumn");
+const savedIndoorValues = JSON.parse(localStorage.getItem("savedIndoorValues") || "[]");
+
+if (savedIndoorColumn && window.originalSectorColumns.includes(savedIndoorColumn)) {
+  indoorColumnSelect.value = savedIndoorColumn;
+
+  const valueSet = new Set();
+  sectorData.forEach(row => {
+    const val = row[savedIndoorColumn];
+    if (val !== undefined && val !== null) {
+      valueSet.add(val.toString().trim());
+    }
+  });
+
+  indoorValueSelect.innerHTML = "";
+  Array.from(valueSet).sort().forEach(val => {
+    const opt = document.createElement("option");
+    opt.value = val;
+    opt.textContent = val;
+    opt.selected = savedIndoorValues.includes(val); // <-- auto-select saved values
+    indoorValueSelect.appendChild(opt);
+  });
+
+  console.log("✅ Restored indoor logic:", savedIndoorColumn, savedIndoorValues);
+} else {
+  // Fallback to `type` column and default indoor values
+  indoorColumnSelect.value = ""; // no selection
+  indoorValueSelect.innerHTML = ""; // nothing to populate
+  console.warn("⚠️ Saved indoor column not found. Falling back to default logic.");
+}
+
+
+  indoorColumnSelect.addEventListener("change", () => {
+    const selectedCol = indoorColumnSelect.value;
+    const valueSet = new Set();
+    sectorData.forEach(row => {
+      const val = row[selectedCol];
+      if (val !== undefined && val !== null) {
+        valueSet.add(val.toString().trim());
+      }
+    });
+
+    indoorValueSelect.innerHTML = "";
+    Array.from(valueSet).sort().forEach(val => {
+      const opt = document.createElement("option");
+      opt.value = val;
+      opt.textContent = val;
+      indoorValueSelect.appendChild(opt);
+    });
+
+    // Save indoor column to localStorage
+  localStorage.setItem("savedIndoorColumn", selectedCol);
+
+  // Save selected values (even though none may be selected yet)
+  const selectedValues = Array.from(indoorValueSelect.selectedOptions).map(opt => opt.value);
+  localStorage.setItem("savedIndoorValues", JSON.stringify(selectedValues));
+
+    throttleRedrawsec();
+  });
+
+ indoorValueSelect.addEventListener("change", () => {
+  const selectedValues = Array.from(indoorValueSelect.selectedOptions).map(opt => opt.value);
+  localStorage.setItem("savedIndoorValues", JSON.stringify(selectedValues));
+  throttleRedrawsec();
+});
+
+  document.getElementById("addFilterRow").addEventListener("click", () => {
+    const container = document.getElementById("multiFilterContainer");
+    const row = document.createElement("div");
+    row.className = "filter-row";
+    row.style = "display: flex; gap: 0.5rem;";
+    row.innerHTML = `
+      <select class="filter-column"></select>
+    <select class="filter-values" multiple size="4" style="min-width: 160px;"></select>
+    <select class="filter-operator">
+      <option value="equals">=</option>
+      <option value="not-equals">≠</option>
+    </select>
+     <div style="
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: #f9f9f9;
+  font-size: 0.85em;
+">
+    <label>
+      <input type="checkbox" class="filter-ignore-empty" />
+      Ignore Empty
+    </label>
+    <label>
+      <input type="checkbox" class="filter-ignore-zero" />
+      Ignore Zero
+    </label>
+    </div>
+    <button class="deleteFilterRow toggle-button" type="button" style="background-color: #b53131;">🗑️</button>
+  `;
+    container.insertBefore(row, container.lastElementChild);
+    const columnSelect = row.querySelector(".filter-column");
+    columnSelect.innerHTML = '<option value="">-- Select Column --</option>';
+    const cols = Object.keys(sectorData[0] || {});
+    cols.forEach(col => {
+      const opt = document.createElement("option");
+      opt.value = col;
+      opt.textContent = col;
+      columnSelect.appendChild(opt);
+    });
+
+    columnSelect.addEventListener("change", handleColumnChange);
+    row.querySelector(".deleteFilterRow").addEventListener("click", () => {
+      const rows = document.querySelectorAll("#multiFilterContainer .filter-row");
+      if (rows.length > 1) {
+        row.remove();
+      } else {
+        alert("At least one filter row is required.");
+      }
+    });
+  });
+
+  if (sectorData.length) {
+    updateColumnDropdowns();
+  }
+  // ✅ Apply saved filters after everything is ready
+applySavedFilters();
+  // ✅ Clear loading status after fully done
+  const statusEl = document.getElementById("csvStatus");
+  if (statusEl) statusEl.textContent = "";
+
+  // ✅ Restore toggle states from localStorage
+const savedDots = localStorage.getItem("geojsonToggleDots");
+const savedCells = localStorage.getItem("geojsonToggleCells");
+
+if (savedDots !== null) {
+  const toggleDots = document.getElementById("toggleDots");
+  toggleDots.checked = savedDots === "true";
+  toggleDots.dispatchEvent(new Event("change")); // trigger re-render
+}
+
+if (savedCells !== null) {
+  const toggleCells = document.getElementById("toggleCells");
+  toggleCells.checked = savedCells === "true";
+  toggleCells.dispatchEvent(new Event("change")); // trigger re-render
+}
+
+};
+//============================================================================================================
+
+map.on("mousemove", function(e) {
+  if (!routeDrawingActive) return;
+  if (activeRoutePoints.length === 0) return;
+
+  const lastPoint = activeRoutePoints[activeRoutePoints.length - 1];
+
+  // If cursor line exists, remove it
+  if (activeRouteCursorLine) {
+    map.removeLayer(activeRouteCursorLine);
+    activeRouteCursorLine = null;
+  }
+
+  // Create new temporary cursor line
+  activeRouteCursorLine = L.polyline([lastPoint, e.latlng], {
+    color: activeRouteColor,  // or any live color you want
+    weight: parseFloat(routeThicknessInput.value),
+    dashArray: "5,5",
+    opacity: 0.7
+  }).addTo(map);
+});
+
+document.addEventListener('keydown', function(e) {
+  currentKey = e.key.toLowerCase();  // track lowercased key
+});
+
+document.addEventListener('keyup', function() {
+  currentKey = null;  // reset on keyup
+});
+
+document.getElementById("clearNeighborHighlightsBtn").addEventListener("click", clearNeighborHighlights);
+
+document.getElementById("toggleLabelsBtn").onclick = () => {
+  if (!labelsVisible) {
+    drawLabels();
+    labelsVisible = true;
+    document.getElementById("toggleLabelsBtn").textContent = "Hide Labels";
+  } else {
+    map.removeLayer(labelLayerGroup);
+    labelsVisible = false;
+    document.getElementById("toggleLabelsBtn").textContent = "Show Labels";
+  }
+};
+
+document.getElementById("labelFontSizeInput").oninput = e => {
+  labelFontSize = parseInt(e.target.value);
+  if (labelsVisible) drawLabels();
+};
+
+document.getElementById("labelFontColorInput").oninput = e => {
+  labelFontColor = e.target.value;
+  if (labelsVisible) drawLabels();
+};
+
+document.getElementById("labelHaloColorInput").oninput = e => {
+  labelHaloColor = e.target.value;
+  if (labelsVisible) drawLabels();
+};
+
+document.getElementById("proximityThresholdInput").oninput = e => {
+  proximityThreshold = parseInt(e.target.value);
+  document.getElementById("proximityThresholdValue").textContent = `${proximityThreshold} px`;
+  if (labelsVisible) drawLabels();
+};
+
+document.getElementById("spiralRadiusStepInput").oninput = e => {
+  spiralRadiusStep = parseInt(e.target.value);
+  document.getElementById("spiralRadiusStepValue").textContent = `${spiralRadiusStep} px`;
+  if (labelsVisible) drawLabels();
+};
+
+document.getElementById("spiralAngleStepInput").oninput = e => {
+  spiralAngleStep = parseInt(e.target.value);
+  document.getElementById("spiralAngleStepValue").textContent = `${spiralAngleStep}°`;
+  if (labelsVisible) drawLabels();
+};
+
+document.getElementById("labelHaloToggle").onchange = e => {
+  haloEnabled = e.target.checked;
+  if (labelsVisible) drawLabels();
+};
+
+document.getElementById("labelFontOpacityInput").oninput = e => {
+  labelFontOpacity = parseFloat(e.target.value);
+  document.getElementById("labelFontOpacityValue").textContent = labelFontOpacity.toFixed(2);
+  if (labelsVisible) drawLabels();
+};
+
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Delete" && selectedRoutePolyline) {
+    map.removeLayer(selectedRoutePolyline);
+    routePolylines = routePolylines.filter(p => p !== selectedRoutePolyline);
+    selectedRoutePolyline = null;
+    updateRouteStats();
+    updateRouteStatus();
+  }
+});
+
+document.getElementById("saveNeighborSettingsBtn").addEventListener("click", () => {
+  const inputs = document.querySelectorAll("#neighborRangeSettings > div");
+  const newRanges = [];
+
+  inputs.forEach(div => {
+    const maxInput = div.querySelector("input[type='number']");
+    const colorInput = div.querySelector("input[type='color']");
+    const max = parseFloat(maxInput.value);
+    const color = colorInput.value;
+    newRanges.push({ max: isNaN(max) ? Infinity : max, color });
+  });
+
+  window.neighborDistanceRanges = newRanges;
+  localStorage.setItem("neighborDistanceRanges", JSON.stringify(
+    newRanges.map(r => ({
+      max: isFinite(r.max) ? r.max : null,
+      color: r.color
+    }))
+  ));
+
+  alert("Neighbor distance settings saved!");
+});
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  const groupSortList = document.getElementById("layerGroupSortList");
+  if (groupSortList) {
+    Sortable.create(groupSortList, {
+      animation: 150,
+      direction: "vertical",
+      onEnd: () => {
+        const userOrder = Array.from(groupSortList.children).map(li => li.dataset.value);
+        localStorage.setItem("layerGroupOrder", JSON.stringify(userOrder));
+        redrawSectors();
+      }
+    });
+  }
+});
+
+document.querySelectorAll('.tooltip-icon[data-tooltip-id]').forEach(icon => {
+  const id = icon.getAttribute('data-tooltip-id');
+  const tip = document.getElementById('tooltip-' + id);
+  const textSpan = icon.querySelector('.tooltip-text');
+  if (tip && textSpan) {
+    textSpan.textContent = tip.textContent.trim();
+  }
+});
+
+document.getElementById("toggleStyleControls").addEventListener("click", function() {
+  togglePanel("toggleStyleControls", "styleControls");
+});
+
+document.getElementById("toggleLabelControls").addEventListener("click", function() {
+  togglePanel("toggleLabelControls", "labelControlsPanel");
+});
+
+document.getElementById("toggleLayerByControls").addEventListener("click", function() {
+  togglePanel("toggleLayerByControls", "layerByControlsPanel");
+});
+
+function togglePanel(activeButtonId, activePanelId) {
+  const buttons = [
+    "toggleStyleControls",
+    "toggleLabelControls",
+    "toggleLayerByControls"
+  ];
+
+  const panels = [
+    "styleControls",
+    "labelControlsPanel",
+    "layerByControlsPanel"
+  ];
+
+  panels.forEach((panelId, index) => {
+    const panel = document.getElementById(panelId);
+    const button = document.getElementById(buttons[index]);
+    if (panelId === activePanelId) {
+      const isVisible = panel.style.display === "flex";
+      panel.style.display = isVisible ? "none" : "flex";
+      button.innerHTML = isVisible
+        ? button.innerHTML.replace("Hide", "Show").replace("▲", "▼")
+        : button.innerHTML.replace("Show", "Hide").replace("▼", "▲");
+    } else {
+      panel.style.display = "none";
+      if (button.innerHTML.includes("Hide")) {
+        button.innerHTML = button.innerHTML.replace("Hide", "Show").replace("▲", "▼");
+      }
+    }
+  });
+}
+
+function toggleControl(buttonId, controlId, label = '') {
+  const button = document.getElementById(buttonId);
+  const panel = document.getElementById(controlId);
+
+  button.addEventListener('click', () => {
+    const isVisible = panel.style.display === 'flex' || panel.style.display === 'block';
+
+    // First, hide all other panels and reset buttons
+    document.querySelectorAll('.floating-control').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.toggle-button').forEach(b => {
+      b.classList.remove('active-toggle', 'hide-mode');
+      const originalLabel = b.getAttribute('data-label');
+      if (originalLabel) b.textContent = `▼ ${originalLabel}`;
+    });
+
+    if (!isVisible) {
+      // Show the clicked panel
+      panel.style.display = 'flex';
+      button.classList.add('active-toggle', 'hide-mode');
+      button.textContent = '▲ Hide';
+    }
+  });
+}
+// Initialize controls
+toggleControl('toggleThematicControls', 'thematicControls', 'Thematic');
+toggleControl('toggleHighlightControls', 'highlightControls', 'Highlight');
+toggleControl('toggleFilterControls', 'filterControls', 'Filter');
+toggleControl('toggleDrawingControls', 'drawingControls', 'Select');
+toggleControl('toggleRouteControls', 'routeControls', 'Draw');
+toggleControl('toggleRmControls', 'rmControls', 'Routing');
+toggleControl('toggleMergeControls', 'mergeControls', 'Merge');
+toggleControl('toggleNeighborControls', 'NeighborControls', 'Neighbor');
+// Add more if needed
+
+document.getElementById("toolbarToggleBtn").addEventListener("click", function () {
+  const toolbar = document.getElementById("topToolbar");
+  toolbar.classList.toggle("collapsed");
+
+  // Auto-close all open floating controls
+  if (toolbar.classList.contains("collapsed")) {
+    document.querySelectorAll('.floating-control').forEach(panel => {
+      panel.style.display = 'none';
+    });
+
+    document.querySelectorAll('.toggle-button').forEach(button => {
+      button.classList.remove('active-toggle', 'hide-mode');
+      const label = button.getAttribute('data-label');
+      if (label) {
+        button.textContent = `▼ ${label}`;
+      }
+    });
+  }
+});
+
+
+//#########################################################Open geojson file#############################################################################
+const MAX_POINTS_FOR_EDITABLE = 500;
+
+function createGeoJsonLayerUI(geojson, name = "Unnamed.geojson", setAsEditable = true) {
+  const totalPoints = countTotalCoords(geojson);
+  console.log(`📊 GeoJSON "${name}" loaded with totalPoints: ${totalPoints}`);
+  const editableAllowed = totalPoints <= MAX_POINTS_FOR_EDITABLE;
+  const labelFields = Object.keys(geojson.features[0]?.properties || {});
+  const layerIndex = layers.length;
+  const controlId = `layer-${layerIndex}`;
+
+  const wrapper = document.createElement('div');
+wrapper.className = 'geolayer-wrapper';
+
+  const block = document.createElement('div');
+  block.className = 'geolayer-block';
+  block.innerHTML = `
+  <!-- Top Title -->
+  <h4>${name} </h4>
+
+  <!-- Show & Active -->
+ <div style="grid-column: span 2; display: flex; justify-content: space-between; width: 100%;">
+  <label style="margin: 0; flex: 1;"><input type="checkbox" class="visibilityCheckbox" checked /> Show</label>
+  <label style="margin: 0; flex: 1; text-align: right;">
+    <input type="checkbox" class="activeLayerCheckbox"
+      ${editableAllowed && setAsEditable ? "checked" : ""}
+      ${editableAllowed ? "" : "disabled"} 
+    /> Active
+  </label>
+</div>
+  <!-- Styling Controls -->
+  <div style="display: grid; grid-template-columns: auto auto; gap: 8px; align-items: center;">
+    <label>Line Weight: 
+      <input type="number" class="lineWeightInput" value="2" min="0" step="1" style="width: 30px;" />
+    </label>
+    <label>Line Color: 
+      <input type="color" class="strokeColorInput" value="#3388ff" />
+    </label>
+    <label>Fill Color: 
+      <input type="color" class="fillColorInput" value="#3388ff" />
+    </label>
+    <label>Fill Opacity: 
+      <input type="number" class="fillOpacityInput" value="0.2" min="0" max="1" step="0.1" style="width: 60px;" />
+    </label>
+  <div style="grid-column: span 2; display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+  <label style="margin: 0;">
+    <input type="checkbox" class="noFillCheckbox" /> No Fill
+  </label>
+  <button class="applyStyleBtn" style="font-size: 11px; padding: 3px 6px; width: 100%;">Apply Style</button>
+</div>
+    <label style="grid-column: span 2;">Label Field: 
+      <select class="labelFieldSelect" style="margin-left: 5px; width: 100%;">
+        <option value="">(none)</option>
+        ${labelFields.map(field => `<option value="${field}">${field}</option>`).join('')}
+      </select>
+    </label>
+   <label style="grid-column: span 1;">Label Style:
+  <select class="labelStyleSelect" style="margin-left: 5px; width: 60px;">
+    <option value="none">(none)</option>
+    <option value="halo">Halo</option>
+    <option value="box">Box</option>
+  </select>
+</label>
+<label style="grid-column: span 1; margin-left: 15px;">Font Size:
+  <input type="number" class="labelFontSizeInput" value="13" min="8" max="32" step="1" style="width: 50px; margin-left: 5px;" />
+</label>
+
+  </div>
+
+ <!-- Save/Close Button Row -->
+<div style="grid-column: span 2; display: flex; gap: 6px; margin-top: 4px; width: 96%;">
+  <button class="saveGeoJsonBtn" style="flex: 1; font-size: 11px; padding: 3px 6px;">💾 Save</button>
+  <button class="deleteLayerBtn" style="flex: 1; font-size: 11px; padding: 3px 6px;">✖ Close</button>
+</div>
+
+  <hr />
+`;
+wrapper.appendChild(block);
+  layerControlsDiv.appendChild(wrapper);
+
+  const getStyle = () => {
+   const noFillCheckbox = block.querySelector('.noFillCheckbox');  // ✅ Add this
+  const noFill = noFillCheckbox && noFillCheckbox.checked;
+  return {
+    weight: parseFloat(block.querySelector('.lineWeightInput').value),
+    color: block.querySelector('.strokeColorInput').value,
+    fillColor: noFill ? 'transparent' : block.querySelector('.fillColorInput').value,
+    fillOpacity: noFill ? 0 : parseFloat(block.querySelector('.fillOpacityInput').value)
+    };
+  };
+
+  let layer = createLayer(geojson, controlId, getStyle());
+  layer.addTo(map);
+  layer.pm.disable();
+
+  if (totalPoints <= MAX_POINTS_FOR_EDITABLE) {
+    map.fitBounds(layer.getBounds());
+  }
+
+  layers.push({ layer, geojson, name, controlId, hasCustomStyleApplied: false });
+
+  if (setAsEditable && editableAllowed) {
+    activeLayerId = controlId;
+    updateEditableLayer();
+  }
+
+  // Event: Apply style
+block.querySelector('.applyStyleBtn').addEventListener('click', () => {
+      const style = getStyle();
+  // 🛠️ Deep clone the GeoJSON object to break references
+  const freshGeojson = layer.toGeoJSON();
+
+  // 💥 Remove _style on each feature
+  freshGeojson.features.forEach(f => {
+    delete f.properties?._style;
+  });
+
+  // ✅ Apply the new style to each feature
+freshGeojson.features.forEach(f => {
+  f.properties._style = {
+    stroke: style.color,
+    "stroke-width": style.weight,
+    fill: style.fillColor,
+    "fill-opacity": style.fillOpacity
+  };
+});
+
+
+
+  const labelField = block.querySelector('.labelFieldSelect').value;
+  const showLabels = true;
+  const fontSize = 13;
+  const fontColor = "#000066";
+  const labelStyle = block.querySelector('.labelStyleSelect').value;
+
+  map.removeLayer(layer);
+  layer = createLayer(freshGeojson, controlId, style, labelField, showLabels, fontSize, fontColor, labelStyle);
+  layer.addTo(map);
+  layers[layerIndex].layer = layer;
+
+  // ✅ Mark that style was applied
+  layers[layerIndex].hasCustomStyleApplied = true;
+
+  if (controlId === activeLayerId) updateEditableLayer();
+});
+
+block.querySelector('.labelFieldSelect').addEventListener('change', () => {
+  const freshGeojson = layer.toGeoJSON();
+
+  const labelField = block.querySelector('.labelFieldSelect').value;
+  const showLabels = true;
+  const fontSize = parseInt(block.querySelector('.labelFontSizeInput').value);
+  const fontColor = "#000066";
+  const labelStyle = block.querySelector('.labelStyleSelect').value;
+
+  map.removeLayer(layer);
+  layer = createLayer(freshGeojson, controlId, getStyle(), labelField, showLabels, fontSize, fontColor, labelStyle);
+  layer.addTo(map);
+  layers[layerIndex].layer = layer;
+
+  if (controlId === activeLayerId) updateEditableLayer();
+});
+
+
+block.querySelector('.labelStyleSelect').addEventListener('change', () => {
+  const freshGeojson = layer.toGeoJSON();
+
+  const labelField = block.querySelector('.labelFieldSelect').value;
+  const labelStyle = block.querySelector('.labelStyleSelect').value;
+  const showLabels = true;
+  const fontSize = parseInt(block.querySelector('.labelFontSizeInput').value);
+  const fontColor = "#000066";
+
+  map.removeLayer(layer);
+  layer = createLayer(freshGeojson, controlId, {}, labelField, showLabels, fontSize, fontColor, labelStyle);
+  layer.addTo(map);
+  layers[layerIndex].layer = layer;
+
+  if (controlId === activeLayerId) updateEditableLayer();
+});
+
+block.querySelector('.labelFontSizeInput').addEventListener('change', () => {
+  const fontSize = parseInt(block.querySelector('.labelFontSizeInput').value);
+  const fontColor = "#000066";
+  const labelStyle = block.querySelector('.labelStyleSelect').value;
+
+  // Update the dynamic CSS only
+  const labelClassName = `label-${controlId}`;
+  const styleId = `${labelClassName}-style`;
+  document.getElementById(styleId)?.remove();
+  const styleEl = document.createElement('style');
+  styleEl.id = styleId;
+  styleEl.innerHTML = `
+    .leaflet-tooltip.${labelClassName} {
+      background: ${labelStyle === 'box' ? 'rgba(255,255,255,0.9)' : 'transparent'};
+      border: ${labelStyle === 'box' ? '1px solid #333' : 'none'};
+      box-shadow: none;
+      padding: ${labelStyle === 'box' ? '2px 4px' : '0'};
+      border-radius: ${labelStyle === 'box' ? '4px' : '0'};
+      font-size: ${fontSize}px;
+      color: ${fontColor};
+      font-weight: bold;
+    }
+    .leaflet-tooltip.halo {
+      text-shadow: -1px -1px 0 white, 1px -1px 0 white,
+                   -1px  1px 0 white, 1px  1px 0 white;
+    }
+  `;
+  document.head.appendChild(styleEl);
+});
+
+
+
+  // Event: Visibility toggle
+  block.querySelector('.visibilityCheckbox').addEventListener('change', (e) => {
+    if (e.target.checked) {
+      layer.addTo(map);
+    } else {
+      map.removeLayer(layer);
+    }
+  });
+
+  // Event: Set as active editable layer
+block.querySelector('.activeLayerCheckbox').addEventListener('change', (e) => {
+  if (!editableAllowed) {
+    alert(`❌ "${name}" has ${totalPoints} points and is too large to be editable.`);
+    e.target.checked = false;
+    return;
+  }
+
+  if (e.target.checked) {
+    // Uncheck all other checkboxes
+    document.querySelectorAll('.activeLayerCheckbox').forEach(cb => {
+      if (cb !== e.target) cb.checked = false;
+    });
+
+    activeLayerId = controlId;
+  } else {
+    activeLayerId = null;
+  }
+
+  updateEditableLayer();
+});
+
+
+function downloadGeoJSON(geojsonData, filename = "data.geojson") {
+  const blob = new Blob([JSON.stringify(geojsonData, null, 2)], {
+    type: "application/geo+json"
+  });
+  downloadBlob(blob, filename);
+}
+
+  // Event: Save GeoJSON
+block.querySelector('.saveGeoJsonBtn').addEventListener('click', () => {
+  const now = new Date();
+const timestamp = now.toISOString().slice(0, 16).replace(/[-:T]/g, '').slice(0, 12); // YYYYMMDDHHmm
+const cleanName = name.replace(/\.[^/.]+$/, ""); // Remove extension
+const defaultName = `${cleanName}_${timestamp}`;
+const baseName = prompt("Enter base name for exported files:", defaultName)?.trim();
+if (!baseName) return;
+
+  const geojsonData = layer.toGeoJSON();
+  const style = getStyle();
+  const customStyleApplied = layers[layerIndex].hasCustomStyleApplied;
+
+  geojsonData.features.forEach(f => {
+    f.properties = f.properties || {};
+    if (customStyleApplied) {
+      f.properties._style = {
+        stroke: style.color,
+        "stroke-width": style.weight,
+        fill: style.fillColor,
+        "fill-opacity": style.fillOpacity
+      };
+    }
+  });
+
+  // --- Save GeoJSON
+  const geojsonBlob = new Blob([JSON.stringify(geojsonData, null, 2)], {
+    type: 'application/geo+json'
+  });
+  downloadBlob(geojsonBlob, `${baseName}.geojson`);
+
+  // --- Save MIF/MID
+  const mifHeader = `Version 300
+Charset "WindowsLatin1"
+Delimiter ","
+CoordSys Earth Projection 1, 104
+
+Columns 4
+  id Char(20)
+  stroke Char(12)
+  fill Char(12)
+  weight Integer
+Data
+`;
+  let mifData = "";
+  let midData = "";
+
+  geojsonData.features.forEach((f, idx) => {
+    const coords = f.geometry.coordinates;
+    const type = f.geometry.type;
+    const id = f.properties?.id || idx + 1;
+
+    const stroke = f.properties._style?.stroke || "#3388ff";
+    const fill = f.properties._style?.fill || "#3388ff";
+    const weight = parseInt(f.properties._style?.["stroke-width"] || 2);
+
+    const strokeRGB = hexToMapInfoRGB(stroke);
+    const fillRGB = hexToMapInfoRGB(fill);
+
+    if (type === "Polygon" || type === "MultiPolygon") {
+      const rings = type === "Polygon" ? [coords] : coords;
+
+      rings.forEach(ring => {
+        mifData += `Region 1\n`;
+        mifData += `${ring.length}\n`;
+        ring.forEach(r => {
+          r.forEach(([lng, lat]) => {
+            mifData += `${lng} ${lat}\n`;
+          });
+        });
+        mifData += `Pen(${Math.min(weight, 7)},2,${strokeRGB})\nBrush(2,${fillRGB},16777215)\n`;
+        midData += `"${id}","${stroke.replace("#", "")}","${fill.replace("#", "")}",${weight}\n`;
+      });
+    }
+
+    if (type === "LineString") {
+      mifData += `Pline ${coords.length}\n`;
+      coords.forEach(([lng, lat]) => {
+        mifData += `${lng} ${lat}\n`;
+      });
+      mifData += `Pen(${Math.min(weight, 7)},2,${strokeRGB})\n`;
+      midData += `"${id}","${stroke.replace("#", "")}","",${weight}\n`;
+    }
+  });
+
+  downloadBlob(new Blob([mifHeader + mifData], { type: "text/plain" }), `${baseName}.mif`);
+  downloadBlob(new Blob([midData], { type: "text/plain" }), `${baseName}.mid`);
+
+  // --- Save GPX
+  let gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="GeoJSONExporter" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk><name>${baseName}</name><trkseg>\n`;
+
+  geojsonData.features.forEach(f => {
+    const coords = f.geometry.coordinates;
+    const type = f.geometry.type;
+    if (type === "LineString") {
+      coords.forEach(([lng, lat]) => {
+        gpx += `    <trkpt lon="${lng}" lat="${lat}"></trkpt>\n`;
+      });
+    }
+  });
+
+  gpx += `  </trkseg></trk>\n</gpx>`;
+  downloadBlob(new Blob([gpx], { type: "application/gpx+xml" }), `${baseName}.gpx`);
+});
+
+
+
+
+  // Event: Delete layer
+  block.querySelector('.deleteLayerBtn').addEventListener('click', () => {
+    map.removeLayer(layer);
+    layerControlsDiv.removeChild(wrapper);
+    layers[layerIndex] = null;
+    if (controlId === activeLayerId) {
+      activeLayerId = null;
+      updateEditableLayer();
+    }
+  });
+}
+
+function countTotalCoords(geojson) {
+  let count = 0;
+
+  geojson.features.forEach(f => {
+    const geom = f.geometry;
+    if (!geom) return;
+
+    const countCoords = (coords) => {
+      if (typeof coords[0] === 'number') {
+        count++;
+      } else {
+        coords.forEach(countCoords);
+      }
+    };
+
+    countCoords(geom.coordinates);
+  });
+
+  return count;
+}
+
+  const layers = [];
+  let activeLayerId = null;
+
+  const layerControlsDiv = document.getElementById('layerControls');
+
+  // Enable per-layer editing=================================
+function updateEditableLayer() {
+  let hasActive = false;
+
+  layers.filter(Boolean).forEach(({ layer, controlId }) => {
+    if (controlId === activeLayerId) {
+     layer.pm.enable({
+  allowSelfIntersection: false,
+  addVertex: false  // ✅ This disables midpoint vertex handles
+});
+      hasActive = true;
+    } else {
+      layer.pm.disable();
+    }
+  });
+
+  setDrawingControlsVisibility(hasActive);
+}
+
+//===========================================================
+  // When new shape is drawn, add to active layer only
+map.on('pm:create', e => {
+  const active = layers.find(l => l.controlId === activeLayerId);
+  if (active) {
+    active.layer.addLayer(e.layer);
+
+    const block = document.querySelector(`#${active.controlId}`).closest('.geolayer-block');
+
+    // ✅ Set default _style for new feature
+    e.layer.feature = e.layer.feature || { type: "Feature", properties: {}, geometry: e.layer.toGeoJSON().geometry };
+    e.layer.feature.properties._style = {
+      stroke: block.querySelector('.strokeColorInput').value,
+      "stroke-width": parseFloat(block.querySelector('.lineWeightInput').value),
+      fill: block.querySelector('.noFillCheckbox').checked ? 'transparent' : block.querySelector('.fillColorInput').value,
+      "fill-opacity": block.querySelector('.noFillCheckbox').checked ? 0 : parseFloat(block.querySelector('.fillOpacityInput').value)
+    };
+
+    // ✅ Immediately apply style to drawn shape
+    e.layer.setStyle({
+      color: e.layer.feature.properties._style.stroke,
+      weight: e.layer.feature.properties._style["stroke-width"],
+      fillColor: e.layer.feature.properties._style.fill,
+      fillOpacity: e.layer.feature.properties._style["fill-opacity"]
+    });
+
+  } else {
+    alert("No active layer selected.");
+    e.layer.remove();
+  }
+});
+
+
+//=====================================================================================
+  document.getElementById('geojsonInput').addEventListener('change', function (e) {
+    Array.from(e.target.files).forEach((file, index) => {
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        const geojson = JSON.parse(event.target.result);
+         createGeoJsonLayerUI(geojson, file.name);
+
+      };
+      reader.readAsText(file);
+    });
+     e.target.value = '';  // 👈 This allows re-uploading the same file
+  });
+ 
+//=====================================================================================
+  document.getElementById('geotogglePanel').addEventListener('click', () => {
+    const geotoolbar = document.getElementById('geotoolbar');
+    geotoolbar.style.display = geotoolbar.style.display === 'none' ? 'block' : 'none';
+  });
+
+  function createLayer(geojson, controlId, styleOverride, labelField = "", showLabels = false, fontSize = 13, fontColor = "#000066", labelStyle = "none") {
+     const totalPoints = countTotalCoords(geojson);
+  const interactive = totalPoints <= MAX_POINTS_FOR_EDITABLE;
+
+  const labelClassName = `label-${controlId}`;
+  const classList = [labelClassName];
+  if (labelStyle === 'halo') classList.push('halo');
+  if (labelStyle === 'box') classList.push('boxed');
+
+  // Inject or replace dynamic CSS
+  const styleId = `${labelClassName}-style`;
+  document.getElementById(styleId)?.remove();
+  const styleEl = document.createElement('style');
+  styleEl.id = styleId;
+  styleEl.innerHTML = `
+    .leaflet-tooltip.${labelClassName} {
+      background: ${labelStyle === 'box' ? 'rgba(255,255,255,0.9)' : 'transparent'};
+      border: ${labelStyle === 'box' ? '1px solid #333' : 'none'};
+      box-shadow: none;
+      padding: ${labelStyle === 'box' ? '2px 4px' : '0'};
+      border-radius: ${labelStyle === 'box' ? '4px' : '0'};
+      font-size: ${fontSize}px;
+      color: ${fontColor};
+      font-weight: bold;
+    }
+    .leaflet-tooltip.halo {
+      text-shadow: -1px -1px 0 white, 1px -1px 0 white,
+                   -1px  1px 0 white, 1px  1px 0 white;
+    }
+  `;
+  document.head.appendChild(styleEl);
+
+  const isEditable = document.querySelector(`input[name="activeLayer"][value="${controlId}"]`)?.disabled === false;
+
+  return L.geoJSON(geojson, {
+    interactive: interactive,  // 🧠 This disables pointer events for large layers
+    style: function (feature) {
+      const styleProp = feature.properties?._style;
+
+      // Priority 1: styling from exported editor (_style)
+      if (styleProp) {
+        return {
+          color: styleProp.stroke || "#ff0000",
+          weight: styleProp["stroke-width"] || 2,
+          fillColor: styleProp.fill || "#ffff00",
+          fillOpacity: styleProp["fill-opacity"] ?? 0.5
+        };
+      }
+
+      // Priority 2: route styling from route export
+     // Only use this block if you *want* to support legacy route styling
+if (feature.properties?.isRoute && (feature.properties.color || feature.properties.weight)) {
+  return {
+    color: feature.properties.color || "#3388ff",
+    weight: feature.properties.weight || 3,
+    opacity: 1
+  };
+}
+
+
+      // Fallback
+      return styleOverride;
+    },
+
+  onEachFeature: function (feature, layer) {
+  if (showLabels && feature.properties?.[labelField]) {
+    layer.bindTooltip(String(feature.properties[labelField]), {
+      permanent: true,
+      direction: 'center',
+      className: classList.join(' ')
+    });
+  }
+
+  // ✅ Enable PM for removal/editing
+  if (layer.pm) {
+    layer.pm.enable({ allowSelfIntersection: false,addVertex: false });
+  }
+
+  // Preserve route color info for highlighting
+  if (feature.properties?.color) layer.options.routeColor = feature.properties.color;
+  if (feature.properties?.weight) layer.options.routeWeight = feature.properties.weight;
+
+  // Optional: handle click selection for route highlight
+  layer.options._isTemporaryRoute = false;
+  layer.on("click", function (e) {
+    if (selectedRoutePolyline) {
+      selectedRoutePolyline.setStyle({
+        color: selectedRoutePolyline.options.routeColor || "#3388ff",
+        weight: selectedRoutePolyline.options.routeWeight || 3,
+        opacity: 1
+      });
+    }
+
+    selectedRoutePolyline = this;
+    this.setStyle({
+      color: "#FFD700",
+      weight: (this.options.routeWeight || 3) + 2
+    });
+
+    skipNextMapClick = true;
+    e.originalEvent.stopPropagation();
+  });
+}
+
+  });
+}
+//####################################save draw route and auto open as geojson##################################################
+
+function addGeoLayerFromObject(geojson, name = "Unnamed.geojson", setAsEditable = true) {
+ createGeoJsonLayerUI(geojson, name, setAsEditable);
+}
+
+function forceStopRouteDrawing(reason = "") {
+  if (!routeDrawingActive) return;
+  routeDrawingActive = false;
+
+  const btn = document.getElementById("startRouteDrawingBtn");
+  if (btn) btn.textContent = "Start Route";
+  map.getContainer().style.cursor = '';
+
+  if (activeRoutePolyline) {
+    map.removeLayer(activeRoutePolyline);
+    activeRoutePolyline = null;
+  }
+  if (trailingRouteLine) {
+    map.removeLayer(trailingRouteLine);
+    trailingRouteLine = null;
+  }
+  if (activeRouteCursorLine) {
+    map.removeLayer(activeRouteCursorLine);
+    activeRouteCursorLine = null;
+  }
+
+  activeRoutePoints = [];
+  updateRouteStatus();
+  updateRouteStats();
+
+  if (reason) console.log(`⛔ Route drawing stopped: ${reason}`);
+}
+
+map.on("pm:globaldrawmodetoggled", e => {
+  if (e.enabled) forceStopRouteDrawing("Drawing mode active");
+});
+map.on("pm:globaleditmodetoggled", e => {
+  if (e.enabled) forceStopRouteDrawing("Edit mode active");
+});
+map.on("pm:globalremovalmodetoggled", e => {
+  if (e.enabled) forceStopRouteDrawing("Removal mode active");
+});
+
+// ✅ Clean fix: remove shapes from their parent geojson layer when deleted
+map.on('pm:remove', e => {
+  const parentLayer = layers.find(l => l && l.layer && l.layer.hasLayer(e.layer));
+
+  if (parentLayer) {
+    parentLayer.layer.removeLayer(e.layer);
+    console.log(`✅ Removed shape from ${parentLayer.name}`);
+  } else {
+    console.log("⚠️ Removed shape had no parent geojson layer.");
+  }
+});
+
+function deactivateAllLeafletPMModes() {
+  if (!map.pm) return;
+
+  // 🛠 Deactivate draw mode
+  if (typeof map.pm.disableDraw === "function") {
+    try {
+      map.pm.disableDraw();  // will also deactivate draw mode if active
+      console.log("✅ Disabled draw mode");
+    } catch (e) {
+      console.warn("⚠️ Error disabling draw mode:", e);
+    }
+  }
+
+  // 🛠 Deactivate edit mode
+  if (typeof map.pm.disableGlobalEditMode === "function") {
+    try {
+      map.pm.disableGlobalEditMode();
+      console.log("✅ Disabled edit mode");
+    } catch (e) {
+      console.warn("⚠️ Error disabling edit mode:", e);
+    }
+  }
+
+  // 🛠 Deactivate removal mode
+  if (typeof map.pm.disableGlobalRemovalMode === "function") {
+    try {
+      map.pm.disableGlobalRemovalMode();
+      console.log("✅ Disabled removal mode");
+    } catch (e) {
+      console.warn("⚠️ Error disabling removal mode:", e);
+    }
+  }
+
+  // 🚫 Optional: Reset any active toolbar button
+  if (map.pm.Toolbar && map.pm.Toolbar.activeButton) {
+    try {
+      const active = map.pm.Toolbar.activeButton;
+      if (typeof active._handler?.disable === "function") {
+        active._handler.disable();
+      }
+      active._button?.classList.remove("active");
+      map.pm.Toolbar.activeButton = null;
+      console.log("✅ Deactivated active toolbar button");
+    } catch (e) {
+      console.warn("⚠️ Error resetting toolbar:", e);
+    }
+  }
+
+  console.log("🛑 Leaflet.PM deactivated successfully");
+}
+
+// Helper: Save file
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Helper: Hex to MapInfo RGB integer
+function hexToMapInfoRGB(hex) {
+  hex = hex.replace(/^#/, "");
+  const bigint = parseInt(hex, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return (r * 65536) + (g * 256) + b;
+}
+
+//===========================================================================================
+//====================routing machine========================================================
+//===========================================================================================
+
+  let points = [];
+  let tempMarkers = [];
+  let customLines = [];
+  let customDecorators = [];
+  let routingControl = null;
+  let collecting = false;
+  let addViaMode = false;
+
+
+  const COLORS = [
+    'red', 'blue', 'green', 'orange', 'purple', 'brown',
+    'teal', 'magenta', 'gold', 'black', 'darkgreen', 'darkblue'
+  ];
+
+ const startIcon = L.icon({
+  iconUrl: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-green.png',
+  iconSize: [32, 48],
+  iconAnchor: [16, 48],
+  popupAnchor: [0, -48]
+});
+
+const viaIcon = L.icon({
+  iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+  popupAnchor: [0, -32]
+});
+
+const endIcon = L.icon({
+  iconUrl: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-red.png',
+  iconSize: [32, 48],
+  iconAnchor: [16, 48],
+  popupAnchor: [0, -48]
+});
+
+
+  function clearCustomLines() {
+    customLines.forEach(line => map.removeLayer(line));
+    customLines = [];
+    customDecorators.forEach(deco => map.removeLayer(deco));
+    customDecorators = [];
+  }
+
+  document.getElementById('startMulti').onclick = () => {
+    placingRouteMarkers = true;
+    document.getElementById('map').classList.add('adding-points');
+    collecting = true;
+    addViaMode = false;
+    points = [];
+    tempMarkers.forEach(m => map.removeLayer(m));
+    tempMarkers = [];
+    clearCustomLines();
+
+    if (routingControl) {
+      map.removeControl(routingControl);
+      routingControl = null;
+    }
+
+    document.getElementById('getDirection').disabled = false;
+    showCursorLabel('Marker');
+  };
+
+map.on('click', e => {
+  if (addViaMode && routingControl) {
+    const wps = routingControl.getWaypoints();
+    const newWp = L.Routing.waypoint(e.latlng);
+    routingControl.setWaypoints(wps);
+    addViaMode = false;
+    return;
+  }
+
+  if (!collecting) return;
+  const marker = L.marker(e.latlng).addTo(map).bindPopup(`Point ${points.length + 1}`).openPopup();
+  tempMarkers.push(marker);
+  points.push(e.latlng);
+});
+
+  document.getElementById('getDirection').onclick = () => {
+    hideCursorLabel();
+    placingRouteMarkers = false;
+    document.getElementById('map').classList.remove('adding-points');
+    if (points.length < 2) {
+      alert("Need at least 2 routing points.");
+      return;
+    }
+    addViaMode = false;
+    collecting = false;
+    addViaMode = false;
+    tempMarkers.forEach(m => map.removeLayer(m));
+    tempMarkers = [];
+    clearCustomLines();
+
+    if (routingControl) {
+      map.removeControl(routingControl);
+    }
+
+    routingControl = L.Routing.control({
+      waypoints: points,
+      addWaypoints: true,
+      draggableWaypoints: true,
+      routeWhileDragging: false,
+      show: false,
+      lineOptions: {
+        styles: [{ color: 'transparent', opacity: 0, weight: 0 }]
+      },
+      createMarker: (i, wp, nWps) => {
+  let label = 'Via';
+  let icon = viaIcon;
+
+  if (i === 0) {
+    label = 'Start';
+    icon = startIcon;
+  } else if (i === nWps - 1) {
+    label = 'End';
+    icon = endIcon;
+  }
+
+  return L.marker(wp.latLng, {
+    icon: icon,
+    draggable: true
+  })
+  .bindPopup(label)
+  .bindTooltip(`${i + 1}`, {
+    permanent: true,
+    direction: 'top',
+    className: 'marker-label'
+  });
+}
+
+    }).addTo(map);
+    document.querySelector('.leaflet-top.leaflet-right')?.remove(); // 👈 Removes the empty box
+
+    routingControl.on('routingerror', function(e) {
+  console.error('Routing error:', e.error);
+  alert('Routing failed: ' + (e.error?.message || 'Unknown error'));
+});
+
+
+    routingControl.on('routesfound', e => {
+      clearCustomLines();
+      const route = e.routes[0];
+      const coords = route.coordinates;
+      const wpIndices = route.waypointIndices;
+
+      for (let i = 0; i < wpIndices.length - 1; i++) {
+        const segCoords = coords.slice(wpIndices[i], wpIndices[i + 1] + 1);
+        const color = COLORS[i % COLORS.length];
+        const segment = L.polyline(segCoords, {
+  color,
+  weight: 5,
+  className: 'route-segment',
+}).addTo(map);
+
+segment.on('click', (evt) => {
+   if (!routingControl) return;
+
+  const newLatLng = evt.latlng;
+  const wps = routingControl.getWaypoints();
+  const newWp = L.Routing.waypoint(newLatLng);
+
+  // Insert after the start of this segment (i)
+  wps.splice(i + 1, 0, newWp);
+  routingControl.setWaypoints(wps);
+
+  addViaMode = false;
+});
+
+customLines.push(segment);
+        const decorator = L.polylineDecorator(segment, {
+          patterns: [{
+            offset: 20,
+            repeat: 50,
+            symbol: L.Symbol.arrowHead({
+              pixelSize: 15,
+              polygon: true,
+              pathOptions: { color: color, fillOpacity: 1, weight: 0 }
+            })
+          }]
+        }).addTo(map);
+        customDecorators.push(decorator);
+      }
+    });
+    showMessage("✅ Route drawn. You can drag markers to reroute or click on segments (not arrow) to insert new stops.", 6000);
+      // ✅ Enable buttons after route is successfully drawn
+  document.getElementById('clearAllBtn').disabled = false;
+  document.getElementById('exportMIFMIDBtn').disabled = false;
+  document.getElementById('saveMarkersBtn').disabled = false;
+  };
+
+ document.getElementById('clearAllBtn').onclick = () => {
+     hideCursorLabel();
+    placingRouteMarkers = false;
+   
+  if (!confirm("Are you sure you want to clear all markers and routes? This action cannot be undone.")) {
+    return;
+  }
+  // Clear route control
+  if (routingControl) {
+    map.removeControl(routingControl);
+    routingControl = null;
+  }
+  // Clear markers
+  tempMarkers.forEach(m => map.removeLayer(m));
+  tempMarkers = [];
+  points = [];
+  // Clear colored segments
+  customLines.forEach(l => map.removeLayer(l));
+  customLines = [];
+  // Clear decorators
+  customDecorators.forEach(d => map.removeLayer(d));
+  customDecorators = [];
+  // Reset flags
+  collecting = false;
+  addViaMode = false;
+  // Disable buttons
+  document.getElementById('getDirection').disabled = true;
+  document.getElementById('clearAllBtn').disabled = true;
+document.getElementById('exportMIFMIDBtn').disabled = true;
+document.getElementById('saveMarkersBtn').disabled = true;
+  //alert("All routes and markers cleared.");
+};
+
+function exportToMIFMID() {
+  let mifText = `Version 300
+Charset "WindowsLatin1"
+Delimiter ","
+CoordSys Earth Projection 1, 0
+Columns 4
+  Type Char(10)
+  Color Char(20)
+  Label Char(20)
+  Number Integer
+Data
+`;
+
+  let midText = "";
+
+  // Export polylines (customLines)
+  customLines.forEach((line, idx) => {
+    const latlngs = line.getLatLngs();
+    mifText += `PLINE ${latlngs.length}\n`;
+    latlngs.forEach(ll => {
+      mifText += `    ${ll.lng} ${ll.lat}\n`;
+    });
+
+    const color = line.options.color || 'black';
+    mifText += `    Pen (2,54,${colorNameToRGB(color)})\n`;
+    midText += `"Route","${color}","Segment ${idx + 1}",${idx + 1}\n`;
+  });
+
+  // Export waypoints (routingControl markers)
+  if (routingControl) {
+    const wps = routingControl.getWaypoints();
+    wps.forEach((wp, i) => {
+      mifText += `POINT ${wp.latLng.lng} ${wp.latLng.lat}\n`;
+      const label = (i === 0) ? 'Start' : (i === wps.length - 1) ? 'End' : 'Via';
+      const color = (i === 0) ? 'green' : (i === wps.length - 1) ? 'red' : 'blue';
+      mifText += `    Symbol (34, ${colorNameToRGB(color)}, 12)\n`;
+      midText += `"Marker","${color}","${label}",${i + 1}\n`;
+    });
+  }
+
+  // Download MIF
+  const mifBlob = new Blob([mifText], { type: 'text/plain' });
+  const mifUrl = URL.createObjectURL(mifBlob);
+  const mifLink = document.createElement('a');
+  mifLink.href = mifUrl;
+  mifLink.download = 'route_export.mif';
+  document.body.appendChild(mifLink);
+  mifLink.click();
+  document.body.removeChild(mifLink);
+
+  // Download MID
+  const midBlob = new Blob([midText], { type: 'text/plain' });
+  const midUrl = URL.createObjectURL(midBlob);
+  const midLink = document.createElement('a');
+  midLink.href = midUrl;
+  midLink.download = 'route_export.mid';
+  document.body.appendChild(midLink);
+  midLink.click();
+  document.body.removeChild(midLink);
+
+  // -----------------------------
+  // Export GPX as part of same step
+  // -----------------------------
+  if (routingControl) {
+    const route = routingControl._routes?.[0];
+    if (route) {
+      const coords = route.coordinates;
+      let gpx =
+        `<?xml version="1.0" encoding="UTF-8"?>\n` +
+        `<gpx version="1.1" creator="LeafletRoutingExport" xmlns="http://www.topografix.com/GPX/1/1">\n` +
+        `  <trk>\n` +
+        `    <name>Exported Route</name>\n` +
+        `    <trkseg>\n`;
+
+      coords.forEach(coord => {
+        gpx += `      <trkpt lat="${coord.lat}" lon="${coord.lng}"></trkpt>\n`;
+      });
+
+      gpx +=
+        `    </trkseg>\n` +
+        `  </trk>\n` +
+        `</gpx>`;
+
+      const gpxBlob = new Blob([gpx], { type: 'application/gpx+xml' });
+      const gpxUrl = URL.createObjectURL(gpxBlob);
+      const gpxLink = document.createElement('a');
+      gpxLink.href = gpxUrl;
+      gpxLink.download = 'route_export.gpx';
+      document.body.appendChild(gpxLink);
+      gpxLink.click();
+      document.body.removeChild(gpxLink);
+    }
+  }
+    // -----------------------------
+  // Export GeoJSON with style info
+  // -----------------------------
+  const geojson = {
+    type: "FeatureCollection",
+    features: []
+  };
+
+  // Export polylines with color
+  customLines.forEach((line, idx) => {
+    const coords = line.getLatLngs().map(ll => [ll.lng, ll.lat]);
+    geojson.features.push({
+      type: "Feature",
+      geometry: {
+        type: "LineString",
+        coordinates: coords
+      },
+      properties: {
+        segment: idx + 1,
+        type: "route",
+        color: line.options.color || "black",
+        arrow: true
+      }
+    });
+  });
+
+  // Export waypoints
+  if (routingControl) {
+    const wps = routingControl.getWaypoints();
+    wps.forEach((wp, i) => {
+      const label = (i === 0) ? 'Start' : (i === wps.length - 1) ? 'End' : 'Via';
+      const color = (i === 0) ? 'green' : (i === wps.length - 1) ? 'red' : 'blue';
+      geojson.features.push({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [wp.latLng.lng, wp.latLng.lat]
+        },
+        properties: {
+          type: "marker",
+          label: label,
+          color: color,
+          number: i + 1
+        }
+      });
+    });
+  }
+
+  const geoBlob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/geo+json' });
+  const geoUrl = URL.createObjectURL(geoBlob);
+  const geoLink = document.createElement('a');
+  geoLink.href = geoUrl;
+  geoLink.download = 'route_export.geojson';
+  document.body.appendChild(geoLink);
+  geoLink.click();
+  document.body.removeChild(geoLink);
+
+}
+
+// Helper function
+function colorNameToRGB(color) {
+  const colorMap = {
+    red: 255,
+    green: 32768,
+    blue: 16711680,
+    black: 0,
+    magenta: 16711935,
+    teal: 8421376,
+    orange: 42495,
+    purple: 8388736,
+    brown: 32768,
+    gold: 55295,
+    darkgreen: 32768,
+    darkblue: 8388608
+  };
+  return colorMap[color.toLowerCase()] || 0;
+}
+// Helper function to map color names to MapInfo RGB values
+function colorNameToRGB(color) {
+  const colorMap = {
+    red: 255,
+    green: 32768,
+    blue: 16711680,
+    black: 0,
+    magenta: 16711935,
+    teal: 8421376,
+    orange: 42495,
+    purple: 8388736,
+    brown: 32768,
+    gold: 55295,
+    darkgreen: 32768,
+    darkblue: 8388608
+  };
+  return colorMap[color.toLowerCase()] || 0;
+}
+document.getElementById('exportMIFMIDBtn').onclick = exportToMIFMID;
+
+// Save waypoints as JSON
+function saveMarkers() {
+  let markerData = [];
+
+  // If route control is active, get its waypoints
+  if (routingControl) {
+    markerData = routingControl.getWaypoints().map(wp => ({
+      lat: wp.latLng.lat,
+      lng: wp.latLng.lng
+    }));
+  } else {
+    // Otherwise fall back to points[] (before routing created)
+    markerData = points.map(latlng => ({ lat: latlng.lat, lng: latlng.lng }));
+  }
+
+  const blob = new Blob([JSON.stringify(markerData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'route_markers.json';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+
+// Load markers from JSON
+function loadMarkers(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const markerData = JSON.parse(e.target.result);
+
+      if (!Array.isArray(markerData)) {
+        alert("Invalid marker file.");
+        return;
+      }
+
+      // Clear existing
+      points = [];
+      tempMarkers.forEach(m => map.removeLayer(m));
+      tempMarkers = [];
+
+      markerData.forEach((item, i) => {
+        const latlng = L.latLng(item.lat, item.lng);
+        const marker = L.marker(latlng).addTo(map).bindPopup(`Point ${i + 1}`).openPopup();
+        tempMarkers.push(marker);
+        points.push(latlng);
+      });
+
+      document.getElementById('getDirection').disabled = points.length < 2;
+
+    } catch (error) {
+      alert("Failed to read marker file.");
+      console.error(error);
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+document.getElementById('saveMarkersBtn').onclick = saveMarkers;
+
+const loadInput = document.createElement('input');
+loadInput.type = 'file';
+loadInput.accept = '.json';
+loadInput.style.display = 'none';
+loadInput.onchange = loadMarkers;
+document.body.appendChild(loadInput);
+
+document.getElementById('loadMarkersBtn').onclick = () => loadInput.click();
+
+function showMessage(msg, duration = 3000) {
+  const box = document.getElementById('messageBox');
+  box.innerHTML = msg; // enable HTML formatting
+  box.style.display = 'block';
+
+  setTimeout(() => {
+    box.style.display = 'none';
+  }, duration);
+}
+
+
+//=============================Neighbor function - to change source cell color==============
+const sourceColorPicker = document.getElementById("sourceColorPicker");
+const sourceOpacitySlider = document.getElementById("sourceOpacitySlider");
+const sourceOpacityValue = document.getElementById("sourceOpacityValue");
+
+// Load saved preferences
+const savedColor = localStorage.getItem("neighborSourceColor") || "#FFD700";
+const savedOpacity = localStorage.getItem("neighborSourceOpacity") || "0.9";
+
+sourceColorPicker.value = savedColor;
+sourceOpacitySlider.value = savedOpacity;
+sourceOpacityValue.textContent = savedOpacity;
+
+// Save on change
+sourceColorPicker.addEventListener("input", () => {
+  localStorage.setItem("neighborSourceColor", sourceColorPicker.value);
+});
+sourceOpacitySlider.addEventListener("input", () => {
+  localStorage.setItem("neighborSourceOpacity", sourceOpacitySlider.value);
+  sourceOpacityValue.textContent = sourceOpacitySlider.value;
+});
+
+//======================Neighbor function - to change opacity of neighbor and dimmed cells=============================
+// --- Load neighbor/dimmed opacity from localStorage or set default
+document.getElementById("neighborOpacitySlider").value = localStorage.getItem("neighborOpacity") || 0.85;
+document.getElementById("dimmedOpacitySlider").value = localStorage.getItem("dimmedOpacity") || 0.2;
+
+document.getElementById("neighborOpacityValue").textContent = document.getElementById("neighborOpacitySlider").value;
+document.getElementById("dimmedOpacityValue").textContent = document.getElementById("dimmedOpacitySlider").value;
+
+// --- Save to localStorage when changed
+["neighborOpacitySlider", "dimmedOpacitySlider"].forEach(id => {
+  const slider = document.getElementById(id);
+  const valueSpan = document.getElementById(id.replace("Slider", "Value"));
+  slider.addEventListener("input", () => {
+    const value = parseFloat(slider.value);
+    localStorage.setItem(id.replace("Slider", ""), value);
+    valueSpan.textContent = value;
+  });
+});
+//-------------------------------------------------------------------
+
+
+//----------------------------Mapbox-----------------------------------
+let mapboxLayers = {}; // store added layers
+
+function applyMapboxToken(silent = false) {
+  const token = document.getElementById("mapboxTokenInput").value.trim();
+  if (!token) {
+    if (!silent) alert("Please enter a valid Mapbox access token.");
+    return;
+  }
+
+  localStorage.setItem("mapboxAccessToken", token);
+
+  const styles = {
+    "Mapbox Streets": "streets-v11",
+    "Mapbox Satellite": "satellite-v9",
+    "Mapbox Satellite + Labels": "satellite-streets-v11",
+    "Mapbox Light": "light-v10",
+    "Mapbox Dark": "dark-v10",
+    "Mapbox Navigation Day": "navigation-day-v1",
+    "Mapbox Navigation Night": "navigation-night-v1"
+  };
+
+  let layersAdded = false;
+
+  for (const [label, styleId] of Object.entries(styles)) {
+    if (!mapboxLayers[label]) {
+      const layer = L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/${styleId}/tiles/{z}/{x}/{y}?access_token=${token}`, {
+        tileSize: 512,
+        zoomOffset: -1,
+        maxZoom: 22,
+        attribution: '&copy; <a href="https://www.mapbox.com/about/maps/" target="_blank">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/" target="_blank">OpenStreetMap contributors</a>'
+      });
+
+      mapboxLayers[label] = layer;
+      baseMaps[label] = layer;
+      baseLayerControl.addBaseLayer(layer, label);
+      layersAdded = true;
+    }
+  }
+
+  insertColorPickerIntoLayerControl();
+  syncBackgroundPickerVisibility();
+
+  if (!silent && layersAdded) {
+    alert("Mapbox layers added to the map.");
+  }
+}
+
+
+function clearMapboxToken() {
+  // Clear input and localStorage
+  document.getElementById("mapboxTokenInput").value = "";
+  localStorage.removeItem("mapboxAccessToken");
+
+  // Remove mapbox layers from map and layer control
+  for (const [label, layer] of Object.entries(mapboxLayers)) {
+    if (map.hasLayer(layer)) {
+      map.removeLayer(layer);
+    }
+    baseLayerControl.removeLayer(layer);
+    delete baseMaps[label];
+  }
+
+  mapboxLayers = {};
+
+   // Re-sync background picker
+  syncBackgroundPickerVisibility();
+  insertColorPickerIntoLayerControl();
+
+  alert("Mapbox token cleared and layers removed.");
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  const savedToken = localStorage.getItem("mapboxAccessToken");
+  if (savedToken) {
+    document.getElementById("mapboxTokenInput").value = savedToken;
+    applyMapboxToken(true); // Pass a flag to suppress alert
+  }
+});
+
+function syncBackgroundPickerVisibility() {
+  const currentLayerName = Object.entries(baseMaps).find(
+    ([name, layer]) => map.hasLayer(layer)
+  )?.[0];
+
+  const colorPickerWrapper = document.getElementById('colorPickerWrapper');
+  const bgColorPicker = document.getElementById('bgColorPicker');
+
+  if (!colorPickerWrapper || !bgColorPicker) return;
+
+  if (currentLayerName === "Off Map") {
+    colorPickerWrapper.style.display = 'block';
+    document.getElementById("map").style.backgroundColor = bgColorPicker.value;
+  } else {
+    colorPickerWrapper.style.display = 'none';
+    document.getElementById("map").style.backgroundColor = 'transparent';
+  }
+}
+
+function setMapBackgroundColor(color) {
+  const mapDiv = document.getElementById("map");
+  if (mapDiv) {
+    mapDiv.style.backgroundColor = color;
+  }
+}
+
+
+function insertColorPickerIntoLayerControl() {
+  const layersControlContainer = document.querySelector('.leaflet-control-layers-base');
+  if (!layersControlContainer || document.getElementById('colorPickerWrapper')) return; // prevent duplicate
+
+  const colorPickerWrapper = document.createElement('div');
+  colorPickerWrapper.id = 'colorPickerWrapper';
+  colorPickerWrapper.innerHTML = `
+    <label style="font-size: 12px;">Background Color:</label><br>
+    <input type="color" id="bgColorPicker" value="#000000" style="width: 100%;">
+  `;
+  colorPickerWrapper.style.padding = '4px';
+  colorPickerWrapper.style.display = 'none';
+  layersControlContainer.appendChild(colorPickerWrapper);
+
+  const bgColorPicker = document.getElementById('bgColorPicker');
+
+  // Initial background
+  setMapBackgroundColor(bgColorPicker.value);
+
+  // Input change logic
+  bgColorPicker.addEventListener('input', function () {
+    if (map.hasLayer(noMapLayer)) {
+      setMapBackgroundColor(bgColorPicker.value);
+    }
+  });
+
+  // Initial visibility
+  syncBackgroundPickerVisibility();
+}
+
+//--------------------------restore thematic range setting----------------------------
+function maybeRestoreRangeUI() {
+  const mode = document.getElementById("thematicMode").value;
+  const col = document.getElementById("thematicColumnSelect").value;
+  const classRangeList = document.getElementById("classRangeList");
+
+  if (mode === "range" && col && rangeClassMap[col]) {
+    classRangeList.innerHTML = ""; // Clear old
+
+    rangeClassMap[col].forEach(({ min, max, color }) => {
+      const container = document.createElement("div");
+      container.classList.add("class-range-row");
+      container.style.display = "flex";
+      container.style.gap = "0.5rem";
+      container.innerHTML = `
+        <input type="number" class="range-min" value="${min}" style="width: 80px;">
+        <input type="number" class="range-max" value="${max}" style="width: 80px;">
+        <input type="color" class="range-color" value="${color}" style="width: 40px;">
+        <button class="remove-range" type="button">✖</button>
+      `;
+      classRangeList.appendChild(container);
+
+      container.querySelector(".remove-range").addEventListener("click", () => {
+        container.remove();
+      });
+    });
+  }
+}
+
+//-------------------------remembering fliter selection----------------------------------------
+
+function applySavedFilters() {
+  const raw = localStorage.getItem("savedFilters");
+  if (!raw) return;
+
+  let savedFilters;
+  try {
+    savedFilters = JSON.parse(raw);
+
+    // Convert selectedSetArray to Set for use
+    savedFilters.forEach((f, index) => {
+      if (Array.isArray(f.selectedSetArray)) {
+        f.selectedSet = new Set(f.selectedSetArray);
+      } else {
+        f.selectedSet = new Set(); // fallback
+      }
+    });
+
+  } catch (e) {
+    console.warn("Invalid saved filters");
+    return;
+  }
+
+  // ✅ Check that all saved columns exist in the new dataset
+  const availableColumns = Object.keys(sectorData[0] || {});
+  const valid = savedFilters.every(f => availableColumns.includes(f.col));
+  if (!valid) {
+    console.warn("Saved filter columns not valid in new CSV. Skipping UI rebuild.");
+    return;  // ⛔️ Skip everything if any column is missing
+  }
+
+  // ✅ Check if any of the selected values exist in current data
+  const valuesValid = savedFilters.every(f => {
+    if (!f.selectedSet || f.selectedSet.size === 0) return true;
+    return sectorData.some(row => f.selectedSet.has((row[f.col] || "").trim()));
+  });
+  if (!valuesValid) {
+    console.warn("Saved filter values do not exist in new CSV.");
+    return; // ⛔️ Skip UI and apply
+  }
+
+  // ✅ Now it's safe to rebuild filter UI
+  const container = document.getElementById("multiFilterContainer");
+  container.querySelectorAll(".filter-row").forEach(row => row.remove());
+
+savedFilters.forEach((f, index) => {
+    const row = document.createElement("div");
+    row.className = "filter-row";
+    row.style = "display: flex; gap: 0.5rem;";
+    row.innerHTML = `
+  <select class="filter-column"></select>
+  <select class="filter-values" multiple size="4" style="min-width: 160px;"></select>
+  <select class="filter-operator">
+    <option value="equals">=</option>
+    <option value="not-equals">≠</option>
+  </select>
+  <div style="
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background-color: #f9f9f9;
+    font-size: 0.85em;
+  ">
+    <label>
+      <input type="checkbox" class="filter-ignore-empty" />
+      Ignore Empty
+    </label>
+    <label>
+      <input type="checkbox" class="filter-ignore-zero" />
+      Ignore Zero
+    </label>
+  </div>
+  ${index > 0 ? `<button class="deleteFilterRow toggle-button" type="button" style="background-color: #b53131;">🗑️</button>` : ""}
+`;
+
+    container.insertBefore(row, container.lastElementChild);
+
+    const cols = Object.keys(sectorData[0]);
+    const columnSelect = row.querySelector(".filter-column");
+    columnSelect.innerHTML = cols.map(c =>
+      `<option value="${c}" ${c === f.col ? "selected" : ""}>${c}</option>`).join("");
+    columnSelect.addEventListener("change", handleColumnChange);
+
+    const valueSelect = row.querySelector(".filter-values");
+    const valuesSet = new Set();
+    sectorData.forEach(row => valuesSet.add((row[f.col] || "").trim()));
+    Array.from(valuesSet).sort().forEach(val => {
+      const selected = f.selectedSet.has(val);
+      const opt = document.createElement("option");
+      opt.value = val;
+      opt.textContent = val;
+      opt.selected = selected;
+      valueSelect.appendChild(opt);
+    });
+
+    row.querySelector(".filter-operator").value = f.operator;
+    row.querySelector(".filter-ignore-empty").checked = f.ignoreEmpty;
+    row.querySelector(".filter-ignore-zero").checked = f.ignoreZero;
+
+    if (index > 0) {
+  row.querySelector(".deleteFilterRow").addEventListener("click", () => {
+    const rows = document.querySelectorAll("#multiFilterContainer .filter-row");
+    if (rows.length > 1) row.remove();
+  });
+}
+  });
+
+  // ✅ Reapply after rebuilding
+  document.getElementById("applyFilter").click();
+}
+
+//-------------------------
+const cursorModeLabel = document.getElementById("cursorModeLabel");
+
+function showCursorLabel(text) {
+  cursorModeLabel.textContent = text;
+  cursorModeLabel.style.display = "block";
+}
+
+function hideCursorLabel() {
+  cursorModeLabel.style.display = "none";
+}
+
+// Keep label following the mouse
+document.addEventListener("mousemove", (e) => {
+  if (cursorModeLabel.style.display !== "none") {
+    cursorModeLabel.style.left = e.clientX + 15 + "px";
+    cursorModeLabel.style.top = e.clientY + 15 + "px";
+  }
+});
+
+
+//----------------------------------neighbor setting new function----------------------------------
+
+
+document.addEventListener("DOMContentLoaded", function () {
+  // Generic toggle function
+  function setupCollapsible(toggleBtnId, containerId, label) {
+    const toggleBtn = document.getElementById(toggleBtnId);
+    const container = document.getElementById(containerId);
+
+    if (!toggleBtn || !container) return;
+
+    // Collapse by default
+    container.style.display = "none";
+    toggleBtn.textContent = `► ${label}`;
+
+    // Toggle on click
+    toggleBtn.addEventListener("click", function () {
+      const isVisible = container.style.display !== "none";
+      container.style.display = isVisible ? "none" : "block";
+      toggleBtn.textContent = isVisible ? `► ${label}` : `▼ ${label}`;
+    });
+  }
+
+  // Set up each collapsible section
+  setupCollapsible("toggleAttemptSettingsBtn", "attemptSettingsContainer", "Attempt Settings");
+  setupCollapsible("toggleNeighborDistanceBtn", "neighborDistanceContainer", "Distance Settings");
+});
+
+document.getElementById("addNeighborRangeBtn").addEventListener("click", () => {
+  window.neighborDistanceRanges.push({ max: Infinity, color: "#888888" });
+  buildNeighborRangeControls();
+});
+
+//====================neighbor file header mapping===========================
+function validateNeighborHeaders(headers) {
+  const missing = [];
+
+  const csvHeaders = headers.map(h => h.trim().toLowerCase());
+  for (const key of ['source_cell_id', 'target_cell_id', 'type']) {
+    const aliases = window.expectedNeighborHeaders[key] || [];
+    const found = aliases.some(alias => csvHeaders.includes(alias.toLowerCase()));
+    if (!found) missing.push(key);
+  }
+
+  if (missing.length > 0) {
+    const msg = `Cannot match columns: ${missing.join(", ")}.\n\nWould you like to manually map them?`;
+    const proceed = confirm(msg);
+    if (proceed) {
+      promptNeighborMapping(headers, missing);
+    }
+    return false;
+  }
+
+  return true;
+}
+
+function promptNeighborMapping(headers, missingKeys) {
+  const container = document.getElementById("headerMappingPrompt");
+  const form = document.getElementById("mappingForm");
+
+  form.innerHTML = "";
+  const saved = JSON.parse(localStorage.getItem("customNeighborHeaderMapping") || "{}");
+
+  missingKeys.forEach(key => {
+    const label = document.createElement("label");
+    label.innerHTML = `Map <b>${key}</b> to:`;
+
+    const select = document.createElement("select");
+    select.dataset.key = key;
+
+    headers.forEach(h => {
+      const opt = document.createElement("option");
+      opt.value = h;
+      opt.textContent = h;
+      if (saved[key] === h) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+
+    form.appendChild(label);
+    form.appendChild(select);
+  });
+
+  container.style.display = "block";
+
+  document.getElementById("applyMappingBtn").onclick = () => {
+    const selects = form.querySelectorAll("select");
+    const newMap = {};
+    selects.forEach(sel => {
+      if (sel.value) {
+        newMap[sel.dataset.key] = sel.value;
+      }
+    });
+
+    localStorage.setItem("customNeighborHeaderMapping", JSON.stringify(newMap));
+    container.style.display = "none";
+
+    // Retry loading the neighbor list
+    if (window._lastNeighborRaw) {
+      loadNeighborList(window._lastNeighborRaw, true); // bypass prompt next round
+    }
+  };
+
+  document.getElementById("cancelMappingBtn").onclick = () => {
+    container.style.display = "none";
+  };
+}
+//=============================================================================
+//===========================select polygon (import and export polygon)=========================
+document.getElementById('exportPolygonBtn').addEventListener('click', () => {
+  if (polygonLayers.length === 0) {
+    alert("No polygons to export.");
+    return;
+  }
+
+  const filename = prompt("Enter filename for the polygon export (without extension):", "polygons");
+  if (!filename) return;
+
+  const features = polygonLayers.map(polygon => polygon.toGeoJSON());
+
+  const geojson = {
+    type: "FeatureCollection",
+    features: features
+  };
+
+  const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename.endsWith(".geojson") ? filename : `${filename}.geojson`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+
+document.getElementById('importPolygonBtn').addEventListener('click', () => {
+  document.getElementById('polygonFileInput').click();
+});
+
+document.getElementById('polygonFileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    try {
+      const geojson = JSON.parse(event.target.result);
+
+      const layers = L.geoJSON(geojson, {
+        style: {
+          color: 'red',
+          weight: 3,
+          opacity: 0.8,
+          fillOpacity: 0.2,
+          fillColor: 'red'
+        }
+      });
+
+      layers.eachLayer(layer => {
+        if (layer instanceof L.Polygon) {
+          layer.addTo(map);
+          if (!map.editTools) map.editTools = new L.Editable(map);
+          layer.enableEdit?.();
+          polygonLayers.push(layer);
+
+          layer.on("click", function (e) {
+  if (selectedPolygon === this) {
+    this.setStyle({ color: 'red' });
+    selectedPolygon = null;
+  } else {
+    if (selectedPolygon) {
+      selectedPolygon.setStyle({ color: 'red' });
+    }
+    selectedPolygon = this;
+    this.setStyle({ color: 'orange' });
+  }
+
+  e.originalEvent?.stopPropagation?.();
+});
+
+        }
+      });
+
+      document.getElementById('selectInsidePolygonBtn').disabled = polygonLayers.length === 0;
+
+    } catch (err) {
+      alert("Failed to load polygon: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+});
+
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Delete" && selectedPolygon) {
+    map.removeLayer(selectedPolygon);
+    
+    // Also remove it from polygonLayers array
+    polygonLayers = polygonLayers.filter(p => p !== selectedPolygon);
+
+    selectedPolygon = null;
+  }
+});
+
+function attachPolygonClickToSelect(polygon) {
+  polygon.on("click", function (e) {
+    if (selectedPolygon === this) {
+      this.setStyle({ color: 'red', weight: 3 });
+      selectedPolygon = null;
+    } else {
+      if (selectedPolygon) {
+        selectedPolygon.setStyle({ color: 'red', weight: 3 });
+      }
+      selectedPolygon = this;
+      this.setStyle({ color: 'orange', weight: 5 });
+    }
+    e.originalEvent?.stopPropagation?.();
+  });
+}
+
+  document.getElementById("infoButton").addEventListener("click", () => {
+    const popup = document.getElementById("aboutPopup");
+    popup.style.display = "block";
+  });
+
+//===========================select polygon (import and export polygon) end =========================
+
+</script>
+
+<!-- ⚠️ CSV Warning Modal -->
+<div id="csvWarningModal" style="display:none; position:fixed; top:20%; left:50%; transform:translateX(-50%);
+background:#fff; border:1px solid #ccc; border-radius:8px; padding:20px; z-index:9999; box-shadow: 0 0 10px rgba(0,0,0,0.3); max-width: 400px;">
+  <h3 style="margin-top:0; color:#c00;">⚠️ CSV Import Warning</h3>
+  <div id="csvWarningMessage" style="font-size:14px; margin-bottom:1em;"></div>
+  <button onclick="document.getElementById('csvWarningModal').style.display='none';"
+    style="padding:6px 12px; background:#c00; color:#fff; border:none; border-radius:4px; cursor:pointer;">
+    Close
+  </button>
+</div>
+
+</body>
+</html>
